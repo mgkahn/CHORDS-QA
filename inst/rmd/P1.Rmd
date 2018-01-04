@@ -1,0 +1,959 @@
+---
+output:  
+    word_document :
+        reference_docx: QaTableStyle6.docx
+params: 
+    DBServerName: 
+        label: "Database Server Name:"
+        value: cc-s-d05.ucdenver.pvt
+        input: select
+        choices: [cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt]
+    DBName:
+        label: "Database Name:"
+        value: VDW_3_1_DH
+        input: select
+        choices: [VDW_3_1_DH, VDW_3_1_DH, VDW_3_1_DH, VDW_3_1_DH]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+startTime <- Sys.time()
+
+# Names of database tables
+demographics    <- "demographics"
+encounters      <- "encounters"
+census_location <- "census_location"
+diagnoses       <- "diagnoses"
+vital_signs     <- "vital_signs"
+lab_results     <- "lab_results"
+procedures      <- "procedures"
+
+# set to zero for full read of the database
+# set to a positive number to limit the number of rows read from each table
+maxQryRows <- 0
+
+# data manipulation functions
+library(dplyr)
+library(tidyr)
+
+# graphing
+library(ggplot2)
+
+# load lib for SQL server connectivity
+# install.packages("RODBC")
+library(RODBC)
+
+# connection to sql server
+sqldb <- odbcDriverConnect(paste('driver={SQL Server};server=',params$DBServerName,';database=',params$DBName, sep=""), readOnlyOptimize = TRUE)
+
+# run this to close the connection to the database
+# close(sqldb)
+
+```
+
+#CHORDS QA Report
+##This data quality report is derived from the results of the CHORDS data quality query developed to run against the CHORDS VDW V3.1. 
+##Data Partner: 
+###Analyst: 
+###Query Run Date:  `r Sys.Date()`
+###Database: `r params$DBName `
+
+
+The purpose of the data quality program is to characterize the data in CHORDS VDW 3.1 P1 tables including CENSUS_LOCATION, DEMOGRAPHICS, DIAGNOSES, ENCOUNTERS, and VITAL_SIGNS. The program uses a series of queries to produce this report including tables that provide descriptive information about data stored in these tables and assesses data model conformance, data plausibility, and data completeness. 
+Report Sections:
+
+*          Descriptive information about patients from the DEMOGRAPHICS table(Tables 1-X)
+
+*          Descriptive information about encounters from the ENCOUNTER table(Tables X-X)
+
+*          Descriptive information about patient locations from the CENSUS_LOCATION table(Tables X-X)
+
+*          Descriptive information about diagnoses from the DIAGNOSES table(Tables X-X)
+
+*          Descriptive information about vital signs from the VITAL_SIGNS  table(Tables X-X)
+
+
+```{r supporting data and functions, include = FALSE}
+## helper functions
+ # returns a vector with the column numbers of character variables in the data frame
+charVars <- function(df) grep('^ch',sapply(df,class))
+
+ # trims all character variables in a dataframe, sets blank to NA
+trimChrVars <- function(df){
+for(i in charVars(df)){
+  df[,i] <- gsub('\\s+$','',df[,i])
+  df[,i] <- ifelse(nchar(df[,i])==0,NA,df[,i])
+}
+  df
+}
+
+# age category calculator
+ageCatCalc <- function(age){
+  ageCat <- factor(
+    ifelse(is.na(age)==TRUE, 0,
+           ifelse(age<0              , 1, 
+                  ifelse(age>=0 & age<2, 2,
+                         ifelse(age>=2 & age<5, 3, 
+                                ifelse(age>=5 & age<10, 4, 
+                                       ifelse (age>=10 & age<15, 5, 
+                                               ifelse(age>=15 & age<19, 6,
+                                                      ifelse(age>=19 & age<22, 7,
+                                                             ifelse(age>=22 & age<45, 8, 
+                                                                    ifelse(age>=45 & age<65, 9, 
+                                                                           ifelse(age>=65 & age<75, 10, 
+                                                                                  ifelse(age>=75 & age<90, 11,
+                                                                                         ifelse(age>=90 , 12, 13)))))) ))))))),
+    levels=0:13,
+    labels=c('Missing','Negative','0-1','2-4','5-9','10-14','15-18','19-21','22-44','45-64','65-74','75-89','90+','Other')
+  )
+  
+  return(ageCat)
+}
+
+# supporting look up tables
+
+stateCnty <- chordsTables::stateCnty
+
+ccsMDxI9 <- chordsTables::ccsMDxI9
+
+ccsMDxI10 <- chordsTables::ccsMDxI10
+
+ccsSDxI9 <- chordsTables::ccsSDxI9
+
+icdLU <- rbind(ccsMDxI10[c('dxCdTp','dxDesc')],ccsSDxI9[c('dxCdTp','dxDesc')])
+
+# ISO language lookup
+isoLang <- chordsTables::isoLang
+
+# VDW value sets
+valSets <- chordsTables::valSets
+
+
+```
+
+#Demographics
+
+##Table 1 . Overall demographics, Dataset: DEMOGRAPHICS
+
+```{r Demographic table, include=F}
+nDemogRows <- sqlQuery(sqldb, 'select  count(*) as nDemogRows FROM  demographics') 
+
+demogSummary <- sqlQuery(sqldb, 
+                  paste('select  count(*) as nDemogRows ',
+                                ', count(distinct person_id) as nPatsDemog ',
+		                            ', sum(nPatsWithEncs) as nPatsWithEncs ',
+		                            ', sum(nPatsWithLoc) as nPatsWithLoc ',
+		                            ', sum(nPatsWithDiag) as nPatsWithDiag ',
+		                            ', sum(nPatsWithVital) as nPatsWithVital' ,
+		                            '  FROM (select distinct',
+		                                          ' person_id',
+		                                         ', case when person_id in (select distinct person_id from', encounters,' ) then 1 else 0 end as nPatsWithEncs ',
+		                                        ',  case when person_id in (select distinct person_id from', census_location,' ) then 1 else 0 end as nPatsWithLoc ',
+		                                        ',  case when person_id in (select distinct person_id from', diagnoses,' ) then 1 else 0 end as nPatsWithDiag ',
+		                                        ',  case when person_id in (select distinct person_id from', vital_signs,' ) then 1 else 0 end as nPatsWithVital ',
+		                                        '  FROM',  demographics,') as q',
+                        sep=" "
+                 ),
+                 max=maxQryRows
+                  )
+
+gc()
+
+demogSummary <- cbind(demogSummary,nDemogRows)
+
+demogTable <-
+  with(demogSummary,
+  rbind(
+    c('Total rows in the demographic table'         ,nDemogRows    ,round(100*nDemogRows/nPatsDemog,1)),
+    c('Unique patients in the demographic table'    ,nPatsDemog    ,round(100*nPatsDemog/nPatsDemog,1)),
+    c('Unique patients found in CENSUS_LOCATION'    ,nPatsWithLoc  ,round(100*nPatsWithLoc/nPatsDemog,1)),
+    c('Unique patients found in DIAGNOSES'          ,nPatsWithDiag ,round(100*nPatsWithDiag/nPatsDemog,1)),
+    c('Unique patients found in VITAL_SIGNS'        ,nPatsWithVital,round(100*nPatsWithVital/nPatsDemog,1))
+  )
+)
+```
+```{r echo=FALSE}
+knitr::kable(demogTable, col.names=c("Characteristic","Frequency","Percent of unique patients"), row.names=FALSE, format.args = list(big.mark = ","))
+```
+
+`r ifelse(demogSummary$nDemogRows==demogSummary$nPatsDemog," ","The demographics table has duplicate rows, by person_id")`
+
+ 
+```{r demographic counts, include=F}
+demogCounts <- sqlQuery(sqldb, 
+                  paste('SELECT gender, primary_language, race1, count(*) as nRows',
+
+                        'FROM ',demographics,
+                        'group by gender, primary_language, race1',
+                        sep=" "
+                        ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                  )
+demogCounts <- trimChrVars(demogCounts)
+
+```
+
+## Table 2. Top 5 Patient Primary Languages , Dataset: DEMOGRAPHICS 
+
+```{r primary language, echo=F}
+primLang <- demogCounts %>% 
+            group_by(primary_language) %>% 
+            summarise(langCnt = sum(nRows)) %>% 
+            ungroup()  %>% 
+            mutate(langTot = sum(langCnt), 
+                  langPct = round(100*langCnt/langTot,1)
+                  )
+
+primLang <- within(merge(primLang,isoLang[c('code3B','InEnglish')],by.x='primary_language', by.y='code3B', all.x=T) %>% arrange(desc(langPct)) ,{
+    InEnglish <- ifelse(!is.na(InEnglish),InEnglish, ifelse(is.na(primary_language) , 'Missing', 'Invalid'))
+})
+
+knitr::kable(primLang[1:5, c('primary_language', 'InEnglish','langCnt','langPct')], 
+            col.names=     c("ISO Language","Language name ","Frequency","Percent"), 
+            row.names=FALSE, 
+            format.args = list(big.mark = ","))
+```
+
+## Table 3. Gender distribution , Dataset: DEMOGRAPHICS 
+
+```{r gender , echo=F}
+gender <-   demogCounts %>% 
+            group_by(gender) %>% 
+            summarise(count = sum(nRows)) %>% 
+            ungroup()  %>% 
+            mutate(totCount = sum(count), 
+                  countPct = round(100*count/totCount,1)
+                  )
+
+gender <- within(merge(gender,subset(valSets,tableName=='DEMOGRAPHICS' & columnName=='GENDER')[c('code','decode')], by.x='gender', by.y='code', all.x=TRUE) %>% arrange(desc(countPct)) ,{
+    decode <- ifelse(!is.na(decode),decode, ifelse(is.na(gender) , 'Missing', 'Invalid'))
+})
+ 
+knitr::kable(gender[    c('gender', 'decode','count','countPct')], 
+            col.names = c("Value","Label","Frequency","Percent"), row.names=FALSE, 
+            format.args = list(big.mark = ","))
+
+```
+
+## Table 4. Race distribution , Dataset: DEMOGRAPHICS 
+
+```{r race , echo=F}
+race <-   demogCounts %>% 
+            group_by(race1) %>% 
+            summarise(count = sum(nRows)) %>% 
+            ungroup()  %>% 
+            mutate(totCount = sum(count), 
+                  countPct = round(100*count/totCount,1)
+                  )
+
+race <- within(merge(race,subset(valSets,tableName=='DEMOGRAPHICS' & columnName=='RACE1')[c('code','decode')], by.x='race1', by.y='code', all.x=TRUE) %>% arrange(desc(countPct)) ,{
+    decode <- ifelse(!is.na(decode),decode, ifelse(is.na(gender) , 'Missing', 'Invalid'))
+})
+ 
+knitr::kable(race[    c('race1', 'decode','count','countPct')], 
+            col.names = c("Value","Label","Frequency","Percent"), 
+            row.names=FALSE, 
+            format.args = list(big.mark = ","))
+
+```
+
+```{r encounter table, include=FALSE}
+
+rm(diag)
+gc()
+
+# create a temp table in the SQL DB temp drive, this will not be pulled into the R workspace.
+nada_ <- sqlQuery(sqldb,
+                  paste('SELECT a.*, floor(DATEDIFF(day, b.birth_date, a.ADATE)/365.25) as age, b.birth_date, month(a.adate) as aMon, year(a.adate) as aYear, month(b.birth_date) as dobMon, year(b.birth_date) as dobYear',
+                        'INTO #encTmp',
+                        'FROM',encounters, ' as a left join (select distinct person_id, birth_date from ',demographics,') as b on a.person_id = b.person_id',
+                        sep=" "
+                        )
+                  )
+
+# short labels for encounter type 
+encLabels <- data.frame(c('AV','ED','IP','LO','OE','RO'),
+                        c('Ambulatory','ED','Inpatient','Lab only','Other','Radiology' ) ,
+                        stringsAsFactors = F
+)
+names(encLabels)<-c('code','decode')
+
+# overall enc summary
+# read encounter table
+encSumm  <- sqlQuery(sqldb,
+                 paste('SELECT count(*) as rowCnt, count(distinct enc_id) as encCnt, count(distinct person_id) as personCnt, min(adate) as firstEnc, max(adate) as lastEnc',
+                       'FROM #encTmp',
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+encRows <- encSumm$rowCnt
+encPrimKeyRows <- encSumm$encCnt
+nEncPats <- encSumm$personCnt
+```
+
+#Encounter table 
+
+Total rows in the dataset: `r encRows`
+
+Total unique combinations of the primary key: `r encPrimKeyRows `
+
+Total patients in the encouter table: `r nEncPats`
+
+Month and year of first encounter: `r format(as.Date(encSumm$firstEnc),"%B %Y")`
+
+Month and year of last encounter: `r format(as.Date(encSumm$lastEnc),"%B %Y")`
+
+`r ifelse(encRows== encPrimKeyRows," ","The encounter table has duplicate rows, by enc_id")`
+
+
+##Table 5 . Count of distinct patients by age group and year of utilization, Dataset: ENCOUNTERS
+
+```{r echo=F}
+ 
+# encPersonYear  <- sqlQuery(sqldb,
+#                  paste('SELECT aMon, aYear, dobMon, dobYear, count(*) as personCnt',
+#                        'FROM (SELECT distinct person_id, aYear, dobMon, dobYear, min(aMon) as aMon ',
+#                        '      FROM #encTmp',
+#                        '      GROUP BY person_id, aYear, dobMon, dobYear) as qry',
+#                        'GROUP BY  aMon, aYear, dobMon, dobYear',
+#                        sep=" "
+#                        ),
+#                  as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
+#                  max=maxQryRows
+#                  )
+encPersonYear  <- sqlQuery(sqldb,
+                 paste('SELECT aMon, aYear, age, count(*) as personCnt',
+                       'FROM (SELECT distinct person_id, aYear, min(age) as age, min(aMon) as aMon ',
+                       '      FROM #encTmp',
+                       '      GROUP BY person_id, aYear) as qry',
+                       'GROUP BY  aMon, aYear, age',
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+encPersonAgeYear <- within(encPersonYear,{
+                           adate_YM <- as.Date(paste(as.character(aYear),as.character(aMon),'01',sep='-'))
+                           #dob_YM <- as.Date(paste(as.character(dobYear),as.character(dobMon),'01',sep='-'))
+                           #age <- as.numeric(floor((difftime(adate_YM, dob_YM, units='days'))/365.25))
+                           ageCat <- ageCatCalc(as.numeric(age))
+                    }) %>% 
+                    group_by(aYear, ageCat) %>%
+                    summarise(Freq = sum(personCnt)) %>% 
+                    group_by(aYear) %>%
+                    mutate(yearTot = sum(Freq),
+                           pct = round(100*Freq/yearTot,1),
+                           toDisplay = paste0(Freq,' (',pct,')')
+                           )  
+ # transpose to square table
+encPersonAgeYear_tx <- spread(encPersonAgeYear[c('ageCat','aYear','toDisplay')],aYear,toDisplay)
+
+knitr::kable(encPersonAgeYear_tx, 
+             col.names=c("Age at First Encounter in CY, N(%)",names(encPersonAgeYear_tx)[-1]), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+
+Percentages are calculated with all patients within the calendar year as the denominator
+
+## Figure 1. Count of distinct patients by age group and year of utilization, Dataset: ENCOUNTERS
+
+```{r echo=F}
+ggplot(data = encPersonAgeYear, aes(x =aYear, y = Freq, fill = ageCat)) + 
+    geom_bar(stat = "identity") + labs(y='Count', x='Year', fill='Age at encounter')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Figure 2. Distinct patients by age group and year of utilization, as a percentage of all patients in the calendar year, Dataset: ENCOUNTERS
+
+```{r echo=F}
+
+ggplot(data = encPersonAgeYear, aes(x =aYear, y = pct , fill = ageCat )) + 
+    geom_bar(stat = "identity") + labs(y='Percent', x='Year', fill='Age at encounter') +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r encounter types by year and month, include=F}
+encEncType_YM  <- sqlQuery(sqldb,
+                 paste('SELECT aMon, aYear, encType, count(*) as rowCnt',
+                       'FROM #encTmp',
+                       'GROUP BY aMon, aYear, encType',
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+encEncType_YM <- within(encEncType_YM,{
+               adate_YM <- as.Date(paste(as.character(aYear),as.character(aMon),'01',sep='-'))
+})
+
+```
+
+
+## Table 6. Count of encounters by encounter type , Dataset: ENCOUNTERS 
+
+```{r include=F}
+encEncType <- encEncType_YM %>% group_by(encType) %>% summarize(Freq = sum(rowCnt))
+encEncType <- merge(encEncType,subset(valSets,tableName=='ENCOUNTERS' & columnName=='ENCTYPE')[c('code','decode')], by.x='encType', by.y='code', all.x=TRUE) 
+encEncType <- within(encEncType, {
+                            pct <- round(100*Freq/sum(Freq),1)
+                           # validVal <- ifelse(is.na(decode),'No','Yes')
+                            decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))
+                            })[c('encType','decode','Freq','pct')]
+```
+```{r echo=FALSE}
+knitr::kable(encEncType, col.names=c("Raw value","Value name",'Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+
+```
+
+
+##Table 7 . Count of encounters by year, Dataset: ENCOUNTERS 
+
+```{r include=F}
+encByYear <- encEncType_YM %>% group_by(aYear ) %>% summarize(Freq = sum(rowCnt))
+
+encByYear <- within(encByYear,{
+                    pct <- round(100*Freq/sum(Freq),1)
+ })
+encByYear$pctChng <- NA
+ for(i in 2:nrow(encByYear)){
+   encByYear$pctChng[i]<-
+    round(100*(encByYear$Freq[i]-encByYear$Freq[i-1])/encByYear$Freq[i-1],1)
+ }
+
+
+
+```
+```{r echo=FALSE}
+knitr::kable(encByYear, col.names=c("Year",'Frequency','Percent','% Change from previous'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+
+##Table 8. Unique patients with encounters by year, Dataset: ENCOUNTERS 
+
+```{r include=F}
+uniqPatByYear <- sqlQuery(sqldb,
+                 paste('SELECT aYear, count(distinct person_id) as Freq',
+                       'FROM #encTmp',
+                       'GROUP BY aYear',
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+
+uniqPatByYear <- within(uniqPatByYear,{
+                    pct <- round(100*Freq/sum(Freq),1)
+ })
+uniqPatByYear$pctChng<-NA
+for(i in 2:nrow(uniqPatByYear)){
+   uniqPatByYear$pctChng[i]<- round(100*(uniqPatByYear$Freq[i]-uniqPatByYear$Freq[i-1])/uniqPatByYear$Freq[i-1],1)
+ }
+
+
+```
+```{r echo=FALSE}
+knitr::kable(uniqPatByYear, col.names=c("Year",'Frequency','Percent','% Change from previous'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+```{r add labels to encEncType_YM , include=F}
+
+encTypeBymonYr <- merge(encEncType_YM,encLabels, by.x='encType', by.y='code', all.x=TRUE) 
+encTypeBymonYr <- within(encTypeBymonYr,{decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))})
+
+```
+
+##Figure 3a. Ambulatory encounters by admission year and month , Dataset: ENCOUNTERS 
+
+```{r echo=F}
+ggplot(subset(encTypeBymonYr,encType == 'AV'), aes(adate_YM, rowCnt)) + geom_line() +
+  scale_x_date(date_labels = "%b %y",date_breaks='1 year') + xlab("Month of encounter") + ylab("Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+##Figure 3b. Other encounter types by admission year and month , Dataset: ENCOUNTERS 
+
+```{r echo=F}
+ggplot(subset(encTypeBymonYr,encType != 'AV'), aes(adate_YM, rowCnt, colour=decode)) + geom_line() +
+  scale_x_date(date_labels = "%b %y",date_breaks='1 year') + xlab("Month of encounter") + ylab("Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))+labs(color='Encounter type')
+
+#,legend.position="bottom" "
+
+```
+
+ 
+```{r include=F}
+#
+# Encounter types by year
+#
+
+encTypeByYr <- encEncType_YM %>% group_by(encType, aYear ) %>% summarize(Freq = sum(rowCnt))
+encTypeByYr <- merge(encTypeByYr,encLabels, by.x='encType', by.y='code', all.x=TRUE) 
+encTypeByYr <- within(encTypeByYr,{decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))})
+
+```
+
+##Figure 4a. Ambulatory encounters by admission year , Dataset: ENCOUNTERS 
+
+```{r echo=F}
+ggplot(data = subset(encTypeByYr,encType = 'AV'), aes(x =aYear, y = Freq)) + 
+    geom_bar(stat = "identity") + labs(y='Count', x='Year')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+##Figure 4b. Other encounter types by admission year, Dataset: ENCOUNTERS  
+
+```{r echo=F}
+
+ggplot(data = subset(encTypeByYr,encType != 'AV'), aes(x =aYear, y = Freq, fill = decode)) + 
+    geom_bar(stat = "identity") + labs(y='Count', x='Year', fill='Encounter type')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+##Table 9. Unique patients with encounters in the last year of data , Dataset: ENCOUNTERS
+
+```{r include=F}
+
+
+uniqPatsEncTypeLastYear <- sqlQuery(sqldb,
+                 paste('SELECT encType, count(distinct person_id) as Freq',
+                       'FROM #encTmp',
+                       'where DATEDIFF(day, (select max(adate) from #encTmp), ADATE) between  -365 and 0',
+                       'GROUP BY  encType',
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+
+
+uniqPatsEncTypeLastYearTBL <-  merge(uniqPatsEncTypeLastYear,encLabels, by.x='encType', by.y='code', all.x=TRUE)
+
+#uniqPatsEncTypeLastYearTBL$encType <- as.character(uniqPatsEncTypeLastYearTBL$encType)
+#uniqPatsEncTypeLastYearTBL <- rbind(uniqPatsEncTypeLastYearTBL, c('gh',100,NA),c('   ',200,NA))
+
+uniqPatsEncTypeLastYearTBL <- within(uniqPatsEncTypeLastYearTBL,{
+  decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))
+  pct <- round(100*Freq/sum(Freq),1)})
+
+
+```
+
+```{r echo=F}
+knitr::kable(uniqPatsEncTypeLastYearTBL[c('encType','decode','Freq','pct')], 
+             col.names=c('encType','Label','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+```
+
+* Patients will be counted only once per encounter type, but also in each encounter type observed.
+
+# Census Location
+
+```{r census location, echo=F}
+locSumm  <- sqlQuery(sqldb,
+                 paste('SELECT count(*) as rowCnt, COUNT(DISTINCT person_id+CAST(loc_start AS varchar(10)) ) as primKeyCnt, count(distinct person_id) as personCnt, min(loc_start) as firstDT, max(loc_start) as lastDT',
+                       'FROM  ',census_location,
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+
+tmpLastLoc_ <- sqlQuery(sqldb,
+                        paste('SELECT distinct a.*',
+                              "INTO #tmpLastLoc",
+                              "FROM ",census_location," AS a INNER JOIN ",
+                              "(SELECT person_id, max(loc_start) as loc_start FROM",census_location,"group by person_id) AS b",
+                              "ON a.person_id = b.person_id and a.loc_start=b.loc_start",
+                              sep=' '
+                              ),
+                        max=maxQryRows
+)
+lastLocation <- sqlQuery(sqldb,
+                         paste("SELECT stateCnty, count(*) as Freq",
+                               "FROM (select distinct substring(geocode,1,5) as stateCnty, person_id FROM #tmpLastLoc) as q",
+                               "GROUP BY stateCnty",
+                               sep=" "),
+                       as.is=c(TRUE,TRUE),
+                        max=maxQryRows
+                         )
+lastLocation <- trimChrVars(lastLocation)
+ multLastLocs <- sqlQuery(sqldb,
+                          paste("SELECT count(distinct person_id) as patsMultLoc",
+                                "FROM (select person_id FROM #tmpLastLoc GROUP BY person_id HAVING count(*)>1) as q",
+                                sep=" "))
+
+```
+
+Total rows in the dataset: `r locSumm$rowCnt`
+
+Total unique combinations of the primary key: `r locSumm$primKeyCnt `
+
+Total patients in the location table: `r locSumm$personCnt`
+
+Month and year of first location: `r format( as.Date(locSumm$firstDT),"%B %Y")`
+
+Month and year of last location: `r format(as.Date(locSumm$lastDT),"%B %Y")`
+
+`r ifelse(locSumm$rowCnt==locSumm$primKeyCnt," ","The Census Location table has duplicate rows, by person_id and loc_start")`
+
+`r multLastLocs$patsMultLoc` patients have more than one most recent location record
+
+##Table 10. Count of unique patients by State and county, based on most recent location, Dataset: CENSUS_LOCATION
+
+```{r echo=F}
+
+lastLocation <- merge(lastLocation, stateCnty[c('stateCnty','stCntyNm')], by = 'stateCnty', all.x=T) %>% arrange(desc(Freq)) %>% 
+                mutate(pct = round(100*Freq/sum(Freq),1),
+                       stCntyNm = ifelse(!is.na(stCntyNm), stCntyNm, ifelse( is.na(stateCnty),'Missing','Invalid'))
+                     )
+knitr::kable(lastLocation[c('stateCnty','stCntyNm','Freq','pct')], 
+             col.names=c('State/county code','State: county','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+#Diagnoses
+
+```{r echo=F}
+
+diagSumm  <- sqlQuery(sqldb,
+                 paste('SELECT count(*) as rowCnt, COUNT(DISTINCT enc_id+dx+CAST(adate AS varchar(10))+diagprovider ) as primKeyCnt, count(distinct person_id) as personCnt, min(adate) as firstDT, max(adate) as lastDT',
+                       'FROM  ',diagnoses,
+                       sep=" "
+                       ),
+                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE),
+                 max=maxQryRows
+                 )
+
+
+```
+
+Total rows in the dataset: `r diagSumm$rowCnt`
+
+Total unique combinations of the primary key: `r diagSumm$primKeyCnt `
+
+Total patients in the table: `r diagSumm$personCnt`
+
+Month and year of first diagnosis: `r format( as.Date(diagSumm$firstDT),"%B %Y")`
+
+Month and year of last diagnosis: `r format( as.Date(diagSumm$lastDT),"%B %Y")`
+
+`r ifelse( diagSumm$rowCnt==diagSumm$primKeyCnt," ","The table has duplicate rows, by enc_id dx adate diagprovider")`
+
+##Table 11. Count of diagnoses by year , Dataset: DIAGNOSIS 
+
+```{r echo=F}
+diagsYear <- sqlQuery(sqldb,
+                      paste("SELECT year(adate) as year, count(*) as Freq",
+                            "FROM ",diagnoses,
+                            "GROUP BY YEAR(adate)",
+                            sep=" "),
+                 max=maxQryRows
+                 )
+
+diagsYear <- within(diagsYear,{ pct <- round(100*Freq/sum(Freq),1)})
+
+knitr::kable(diagsYear[c('year','Freq','pct')], 
+             col.names=c('Year','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+##Table 12. Count of unique patients with at least 1 diagnoses by year , Dataset: DIAGNOSIS 
+
+```{r echo=F}
+patDiagYr <- sqlQuery(sqldb,
+                      paste("SELECT year(adate) as year, count(distinct person_id) as Freq",
+                            "FROM ",diagnoses,
+                            "GROUP BY YEAR(adate)",
+                            sep=" "),
+                 max=maxQryRows
+                 )
+patDiagYr <- within(patDiagYr,{ pct <- round(100*Freq/sum(Freq),1)})
+
+knitr::kable(patDiagYr[c('year','Freq','pct')], 
+             col.names=c('Year','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+##Table 13. Average diagnoses per encounter, by year , Dataset: ENCOUNTERS 
+
+```{r echo=F}
+
+avgDxAll <- sqlQuery(sqldb,
+                      paste("SELECT YEAR(adate) as year, count(*) as rowCnt, count(distinct enc_id) as encCnt, count(distinct person_id) as ptCnt",
+                            "FROM " ,diagnoses,
+                            "GROUP BY YEAR(adate)",
+                            sep=" "),
+                 max=maxQryRows
+                 )
+avgDxAll <- within(avgDxAll,{
+  NDxEnc <- round(rowCnt/encCnt,1)
+  NDxPat <- round(rowCnt/ptCnt,1)
+})
+knitr::kable(avgDxAll[c('year','rowCnt','encCnt','ptCnt','NDxEnc','NDxPat')], 
+             col.names=c('Year','Diagnoses','Encounters','Patients','Dx per encounter','Dx per patient'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+
+```
+
+```{r monthly counts by enc type, echo=F}
+
+dxByMonEncTp <- sqlQuery(sqldb,
+                      paste("SELECT YEAR(adate) as year, MONTH(adate) as month, enctype, count(*) as Freq",
+                            "FROM " ,diagnoses,
+                            "GROUP BY YEAR(adate), MONTH(adate), enctype",
+                            sep=" "),
+                 max=maxQryRows
+                 )
+
+dxByMonEncTp <- within(dxByMonEncTp,{
+  monYr <- as.Date(paste(as.character(year),as.character(month),'01',sep="-"))
+})
+
+dxByMonEncTp <- merge(dxByMonEncTp,encLabels, by.x='enctype', by.y='code', all.x=TRUE) 
+dxByMonEncTp <- within(dxByMonEncTp,{decode <- ifelse(!is.na(decode),decode, ifelse(is.na(enctype), 'Missing', 'Invalid'))})
+
+```
+
+## Figure 5a. Count of diagnoses by year and month in ambulatory encounters , Dataset: DIAGNOSES 
+
+```{r echo=F}
+
+ggplot(subset(dxByMonEncTp,enctype == 'AV'), aes(monYr, Freq)) + geom_line() +
+  scale_x_date(date_labels = "%b %y",date_breaks='1 year') + xlab("Month of encounter") + ylab("Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Figure 5b. Count of diagnoses by year and month, other encounter types , Dataset: DIAGNOSES 
+
+```{r echo=F}
+ggplot(subset(dxByMonEncTp,enctype != 'AV'), aes(monYr, Freq, colour=decode)) + geom_line() +
+  scale_x_date(date_labels = "%b %y",date_breaks='1 year') + xlab("Month of encounter") + ylab("Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))+labs(color='Encounter type')
+
+#,legend.position="bottom" "
+
+```
+
+##Table 14. Top 10 diagnoses by diagnosis code and codetype , Dataset: DIAGNOSES
+
+```{r echo=F}
+top10Dx <- sqlQuery(sqldb,
+                      paste("SELECT dx, dx_codetype, count(*) as Freq",
+                            "FROM " ,diagnoses,
+                            "GROUP BY dx, dx_codetype",
+                            sep=" "),
+                 max=maxQryRows,
+                 as.is=c(TRUE,TRUE,TRUE )
+                 )
+
+top10Dx <- within(top10Dx, {
+  pct <- round(100*Freq/sum(Freq), 1)
+  dxCdTp  <- paste(dx_codetype,'-',gsub('.','',dx, fixed=T), sep='')
+  }) %>% arrange(desc(Freq))
+
+top10Dx <- top10Dx[1:10,]
+top10Dx <- trimChrVars(top10Dx)
+top10Dx <- merge(top10Dx, icdLU, by.x = 'dxCdTp', by.y = 'dxCdTp', all.x=T)
+top10Dx <- within(top10Dx,{
+                  dxDesc <- ifelse(!is.na(dxDesc),dxDesc, ifelse(is.na(dx), 'Missing', 'Invalid'))
+                  
+})
+
+knitr::kable(top10Dx[c('dx_codetype','dx','dxDesc','Freq','pct')], 
+             col.names=c('Code Type','Diagnoses','Description','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+##Table 15. Average diagnoses per encounter, by encounter type, Dataset: DIAGNOSES
+
+```{r echo=F}
+
+NAvgDxEnc <- sqlQuery(sqldb,
+                      paste(
+                     'SELECT enctype, avg(Freq) as NAvgDx',
+                     'FROM (',
+                       'SELECT enc_id, enctype, count(*)*1.0 as Freq',
+                       'FROM ', diagnoses,
+                       'GROUP BY enc_id, enctype) as q',
+                     'GROUP BY enctype',
+                     sep=" "
+                      ),
+                 max=maxQryRows,
+                 as.is=c(TRUE )
+                     )
+
+NAvgDxEnc <- within(
+               merge(NAvgDxEnc,subset(valSets,tableName=='DIAGNOSES' & columnName=='ENCTYPE')[c('code','decode')], by.x='enctype', by.y='code', all.x=TRUE),{
+                 NAvgDx <- round(as.numeric(NAvgDx),1)
+                 decode <- ifelse(!is.na(decode),decode, ifelse(is.na(enctype) , 'Missing', 'Invalid'))
+
+                 
+               })
+
+knitr::kable(NAvgDxEnc[c('enctype','decode','NAvgDx')], 
+             col.names=c('Encounter Type','Label','Average diagnoses'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+
+#VITAL_SIGNS
+
+```{r echo=F}
+
+vitalSumm  <- sqlQuery(sqldb,
+                 paste('SELECT count(*) as rowCnt, COUNT(DISTINCT person_id+CAST(measure_date AS varchar(10))+CAST(measure_time AS varchar(20)) ) as primKeyCnt, count(distinct person_id) as personCnt, min(measure_date) as firstDT, max(measure_date) as lastDT',
+                       'FROM  ',vital_signs,
+                       sep=" "
+                       ),
+                 max=maxQryRows
+                 )
+
+
+```
+
+Total rows in the dataset: `r vitalSumm$rowCnt`
+
+Total unique combinations of the primary key: `r vitalSumm$primKeyCnt `
+
+Total patients in the table: `r vitalSumm$personCnt`
+
+Month and year of first record: `r format(as.Date(vitalSumm$firstDT),"%B %Y")`
+
+Month and year of last record: `r format(as.Date(vitalSumm$lastDT),"%B %Y")`
+
+`r ifelse(vitalSumm$rowCnt==vitalSumm$primKeyCnt," ","The table has duplicate rows, by person_id, measure_date, measure_time")`
+
+
+##Table 16. Vital Sign Summary, Dataset: VITAL_SIGNS
+```{r echo=F}
+
+# be sure to include space breaks in any re-design
+vitalVarSumm <- function(var,label){
+  
+  sqlQuery(sqldb,
+                 paste('SELECT variable, minimum, q1, median, q3, maximum, count(*) as nobs, count(distinct person_id) as npats ',
+                       'FROM (',
+                       "SELECT dummy, variable, person_id, ",var,
+                       ', percentile_cont(0.0) WITHIN GROUP (ORDER BY ',var,') OVER(PARTITION BY dummy) as  Minimum',
+                       ', percentile_cont(0.25) WITHIN GROUP (ORDER BY ',var,') OVER(PARTITION BY dummy) as  q1',
+                       ', percentile_cont(0.5) WITHIN GROUP (ORDER BY ',var,') OVER(PARTITION BY dummy) as  Median',
+                       ', percentile_cont(0.75) WITHIN GROUP (ORDER BY ',var,') OVER(PARTITION BY dummy) as  q3',
+                       ', percentile_cont(1.0) WITHIN GROUP (ORDER BY ',var,') OVER(PARTITION BY dummy) as  maximum ',
+                       'FROM  ',
+                         "(SELECT 1 as dummy, '",label,"' as variable, * FROM ",vital_signs,") as q ",
+                       'WHERE ',var,' > 0 ) as q2 ',
+                       'GROUP BY variable, minimum, q1, median, q3, maximum ',
+                       sep=""
+                       ),
+                 max=maxQryRows,
+                 as.is=c(TRUE)
+                 )
+
+}
+vlst <- do.call('rbind',
+                list(vitalVarSumm('ht','Height'),
+                     vitalVarSumm('wt','Weight'),
+                     vitalVarSumm('systolic','Systolic BP'),
+                     vitalVarSumm('diastolic','Diastolic BP')))
+
+vlst <- within(vlst,{
+  minimum <- round(as.numeric(minimum),1)
+  q1      <- round(as.numeric(q1),1)
+  median  <- round(as.numeric(median),1)
+  q3      <- round(as.numeric(q3),1)
+  maximum <- round(as.numeric(maximum),1)
+})
+knitr::kable(vlst[c('variable','nobs','npats','minimum','q1','median','q3', 'maximum')], 
+             col.names=c('Vital record','Non-null obs.','Unique patients with non-null obs','Minimum','Q1','Median','Q3', 'Maximum'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+```
+
+##Table 15. Row counts of vital records by year , Dataset: VITAL_SIGNS
+
+```{r echo=F}
+
+vitalsByYr <- sqlQuery(sqldb,
+                 paste('SELECT year(measure_date) as year, count(*) as Freq',
+                       'FROM  ',vital_signs,
+                       'GROUP BY year(measure_date)',
+                       sep=" "
+                       ),
+                 max=maxQryRows
+                 )
+
+vitalsByYr <- within(vitalsByYr,{
+  pct <- round(100*Freq/sum(Freq), 1)
+})
+
+knitr::kable(vitalsByYr[c('year','Freq','pct')], 
+             col.names=c('Year','Frequency','Percent'), 
+             row.names=FALSE, 
+             format.args = list(big.mark = ","))
+
+
+```
+
+##Figure 6. Count of vital signs by year and month, Dataset: VITAL_SIGNS
+
+```{r echo=F}
+
+vitalsByMonYr <- sqlQuery(sqldb,
+                 paste('SELECT year(measure_date) as year, month(measure_date) as month',
+                       ', sum(case when ht>0 then 1 else 0 end) as height',
+                       ', sum(case when wt>0 then 1 else 0 end) as weight',
+                       ', sum(case when systolic>0 then 1 else 0 end) as systolic',
+                       ', sum(case when diastolic>0 then 1 else 0 end) as diastolic',
+                       'FROM  ',vital_signs,
+                       'GROUP BY year(measure_date), month(measure_date)',
+                       sep=" "
+                       ),
+                 max=maxQryRows
+                 )
+
+vitalsByMonYr <- within(vitalsByMonYr,{
+  monYr <- as.Date(paste(as.character(year),as.character(month),'01', sep='-'))
+}) %>% subset(select=-c(month,year))
+
+vitalsByMonYrTx <- gather(vitalsByMonYr, 'Vital_record','Count', 1:4)
+
+ggplot(vitalsByMonYrTx, aes(monYr, Count, colour=Vital_record)) + geom_line() +
+  scale_x_date(date_labels = "%b %y",date_breaks='1 year') + xlab("Month of encounter") + ylab("Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))+labs(color='Vital type')
+
+```
+
+####Total program run time:
+```{r Calculate program run time, echo=F}
+# close odbc
+ close(sqldb)
+
+endTime <- Sys.time()
+endTime - startTime 
+```

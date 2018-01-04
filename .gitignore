@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+inst/doc
+
+inst/rmd/P1\.docx
+inst/rmd/P2\.docx
+inst/doc\.html
+inst/doc\.R
