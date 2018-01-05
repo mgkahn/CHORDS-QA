@@ -1,5 +1,4 @@
 Package: chordsTables
-Type: Package
 Title: Package for generating CHORDS priority tables
 Version: 0.0.0.9023
 Authors@R: c(
