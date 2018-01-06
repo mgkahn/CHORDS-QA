@@ -1,6 +1,6 @@
 Package: chordsTables
 Title: Package for generating CHORDS priority tables
-Version: 0.0.2
+Version: 0.0.3
 Authors@R: c(
     person("Matthew", "Cox-Martin", email = "matthew.cox-martin@ucdenver.edu", role = c("aut", "cre")),
     person("Carter", "Sevick", email = "carter.sevick@ucdenver.edu", role = c("ctb"))
@@ -21,3 +21,6 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
+Suggests: 
+    knitr
+VignetteBuilder: knitr
