@@ -1,6 +1,6 @@
 Package: chordsTables
 Title: Package for generating CHORDS priority tables
-Version: 0.0.3
+Version: 0.1.1
 Authors@R: c(
     person("Matthew", "Cox-Martin", email = "matthew.cox-martin@ucdenver.edu", role = c("aut", "cre")),
     person("Carter", "Sevick", email = "carter.sevick@ucdenver.edu", role = c("ctb"))
@@ -9,7 +9,7 @@ Maintainer: Matthew Cox-Martin <matthew.cox-martin@ucdenver.edu>
 Description: This package contains the function, .RMD files, and data files necessary for generating all CHORDS priority tables.
 Depends:
     R (>= 3.0.2)
-Imports: 
+Imports:
     tidyverse,
     rmarkdown,
     RODBC,
@@ -21,6 +21,7 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
-Suggests: 
-    knitr
+Suggests:
+    knitr,
+    rmarkdown
 VignetteBuilder: knitr
