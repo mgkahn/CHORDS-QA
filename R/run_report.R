@@ -14,6 +14,8 @@
 #' @import odbc
 #' @import knitr
 #' @import DBI
+#' @import shiny
+#' @import httr
 #' @export
 
 run_report <- function(priority, dbserver, dbname) {
