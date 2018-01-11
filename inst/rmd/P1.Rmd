@@ -7,12 +7,12 @@ params:
         label: "Database Server Name:"
         value: cc-s-d05.ucdenver.pvt
         input: select
-        choices: [cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt, cc-s-d05.ucdenver.pvt]
+        choices: [cc-s-d05.ucdenver.pvt, vwphbisql06, ihrsql1.ihr.or.kp.org]
     DBName:
         label: "Database Name:"
         value: VDW_3_1_DH
         input: select
-        choices: [VDW_3_1_DH, VDW_3_1_DH, VDW_3_1_DH, VDW_3_1_DH]
+        choices: [VDW_3_1_DH, VDW.dbo, VDW]
 ---
 
 ```{r setup, include=FALSE}
