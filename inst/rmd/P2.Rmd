@@ -36,7 +36,7 @@ con <- DBI::dbConnect(odbc::odbc(),
 
 #CHORDS QA Report: VDW P2 Tables
 
-The purpose of the data quality program is to characterize the data in CHORDS VDW 3.1 priority level 2 (P2) tables.  The P2 tables include the following: LAB_RESULTS, PRESCRIBING, PROCEDURES, PROVIDER_SPECIALTY, and SOCIAL_HISTORY. The program uses a series of SQL queries operationalized using RStudio to produce this report.  These tables provide descriptive information about data stored in a data partner’s VDW and can be used to assess data model conformance, data plausibility, and data completeness.
+The purpose of the data quality program is to characterize the data in CHORDS VDW 3.1 priority level 2 (P2) tables.  The P2 tables include the following: LAB_RESULTS, PRESCRIBING, PROCEDURES, PROVIDER_SPECIALTY, and SOCIAL_HISTORY. The program uses a series of SQL queries operationalized using RStudio to produce this report.  These tables provide descriptive information about data stored in a data partner's VDW and can be used to assess data model conformance, data plausibility, and data completeness.
 This data quality report was generated from CHORDS `r params$DBName`.
 
 ###Information about the QA program 
@@ -269,6 +269,8 @@ tab3 <- tab3 %>%
     ptc_pat = if_else(is.na(npats / dplyr::lag(npats)), "--", paste0(round(npats / dplyr::lag(npats) * 100, 0), "%"))
   )
 
+tab3$year <- as.character(tab3$year)
+
 tab3_ord <- tab3[, c(1,2,4,3,5)]
 
 ```
@@ -359,7 +361,7 @@ lapply(2:ncol(fig1_wide), function(x)
 
 ##Table 5: Summary of the Ten Most Common Lab Tests – Number/Percentage of Tests and Number/Percentage of Patients Tested, by Select BATTERY_CD Values
 
-This table illustrates the number (and percent) of the data partner’s ten most common lab tests and the number (and percent) of unique patients tested with the ten most common lab tests, by the BATTERY_CD field (which captures site-specific lab test names), the percentage of records this represents, and the number and percent of patients in the LAB_RESULTS table who have these results. 
+This table illustrates the number (and percent) of the data partner's ten most common lab tests and the number (and percent) of unique patients tested with the ten most common lab tests, by the BATTERY_CD field (which captures site-specific lab test names), the percentage of records this represents, and the number and percent of patients in the LAB_RESULTS table who have these results. 
 
 ```{r tab5_res}
 
@@ -426,6 +428,8 @@ tab6_all <- left_join(tab6, tab6_avg_pats, by = "year") %>%
     ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
   ) %>% 
   select(year, nrows, ptc_rec, npats, median, min, max)
+
+tab6_all$year <- as.character(tab6_all$year)
 
 ```
 
@@ -557,6 +561,8 @@ tab8_add <- tab8 %>%
   ) %>% 
   select(year, nrows, ptc_rec, nencts, npats, enct_val, pats_val)
 
+tab8_add$year <- as.character(tab8_add$year)
+
 ```
 
 ```{r tab8_dis, results="asis"}
@@ -625,7 +631,7 @@ kable(tab9_all, col.names = c("Encounter Type", "Number of Encounters", "Percent
 
 ##Table 10: Summary of the Ten Most Common Procedures – Procedure Code, Procedure Type, Total Number of Recorded Procedures and Total Number of Recorded Patients, by All or Ambulatory Encounter Type 
 
-This table includes information on the ten most common procedures recorded in your PROCEDURE table.  Data on procedure codes, types, counts and patients are presented for all encounters and for ambulatory only encounters (ENCTYPE=’AV’). 
+This table includes information on the ten most common procedures recorded in your PROCEDURE table.  Data on procedure codes, types, counts and patients are presented for all encounters and for ambulatory only encounters (ENCTYPE='AV'). 
 
 ```{r tab10_res}
 
@@ -855,6 +861,8 @@ tab15 <- odbc::dbGetQuery(con,
        group by year(contact_date)
        order by year(contact_date)")
 
+tab15$year <- as.character(tab15$year)
+
 ```
 
 ```{r tab15_disp, results="asis"}
@@ -881,6 +889,8 @@ tab16 <- odbc::dbGetQuery(con,
        group by year(contact_date)
        order by year(contact_date)")
 
+tab16$year <- as.character(tab16$year)
+
 ```
 
 ```{r tab16_disp, results="asis"}
@@ -905,6 +915,8 @@ tab17 <- odbc::dbGetQuery(con,
      from social_history
        group by year(contact_date)
        order by year(contact_date)")
+
+tab17$year <- as.character(tab17$year)
 
 ```
 

@@ -427,7 +427,7 @@ encByYear$pctChng <- NA
     round(100*(encByYear$Freq[i]-encByYear$Freq[i-1])/encByYear$Freq[i-1],1)
  }
 
-
+encByYear$aYear <- as.character(encByYear$aYear)
 
 ```
 ```{r echo=FALSE}
@@ -459,6 +459,7 @@ for(i in 2:nrow(uniqPatByYear)){
    uniqPatByYear$pctChng[i]<- round(100*(uniqPatByYear$Freq[i]-uniqPatByYear$Freq[i-1])/uniqPatByYear$Freq[i-1],1)
  }
 
+uniqPatByYear$aYear <- as.character(uniqPatByYear$aYear)
 
 ```
 ```{r echo=FALSE}
@@ -670,6 +671,8 @@ diagsYear <- sqlQuery(sqldb,
 
 diagsYear <- within(diagsYear,{ pct <- round(100*Freq/sum(Freq),1)})
 
+diagsYear$year <- as.character(diagsYear$year)
+
 knitr::kable(diagsYear[c('year','Freq','pct')], 
              col.names=c('Year','Frequency','Percent'), 
              row.names=FALSE, 
@@ -688,6 +691,8 @@ patDiagYr <- sqlQuery(sqldb,
                  max=maxQryRows
                  )
 patDiagYr <- within(patDiagYr,{ pct <- round(100*Freq/sum(Freq),1)})
+
+patDiagYr$year <- as.character(patDiagYr$year)
 
 knitr::kable(patDiagYr[c('year','Freq','pct')], 
              col.names=c('Year','Frequency','Percent'), 
@@ -896,7 +901,7 @@ knitr::kable(vlst[c('variable','nobs','npats','minimum','q1','median','q3', 'max
 
 ```
 
-##Table 15. Row counts of vital records by year , Dataset: VITAL_SIGNS
+##Table 17. Row counts of vital records by year , Dataset: VITAL_SIGNS
 
 ```{r echo=F}
 
@@ -912,6 +917,8 @@ vitalsByYr <- sqlQuery(sqldb,
 vitalsByYr <- within(vitalsByYr,{
   pct <- round(100*Freq/sum(Freq), 1)
 })
+
+vitalsByYr$year <- as.character(vitalsByYr$year)
 
 knitr::kable(vitalsByYr[c('year','Freq','pct')], 
              col.names=c('Year','Frequency','Percent'), 
