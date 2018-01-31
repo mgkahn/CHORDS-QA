@@ -435,7 +435,7 @@ tab6_all$year <- as.character(tab6_all$year)
 
 ```{r tab6_disp, results="asis"}
 
-kable(tab6_all, col.names = c("Year", "Total Number of Prescriptioins", "Percent Change From Last Year", "Total Number of Patients", "Median number of Prescriptioins per patient", "Minimum Number of Prescriptioins Per Patient", "Maximum Number of Prescriptioins Per Patient"), format.args = list(big.mark = ","))
+kable(tab6_all, col.names = c("Year", "Total Number of Prescriptions", "Percent Change From Last Year", "Total Number of Patients", "Median number of Prescriptions per patient", "Minimum Number of Prescriptions Per Patient", "Maximum Number of Prescriptions Per Patient"), format.args = list(big.mark = ","))
 
 ```
 
