@@ -32,16 +32,18 @@ procedures      <- "procedures"
 # set to a positive number to limit the number of rows read from each table
 maxQryRows <- 0
 
-# data manipulation functions
-library(dplyr)
-library(tidyr)
-
-# graphing
-library(ggplot2)
-
 # load lib for SQL server connectivity
 # install.packages("RODBC")
 library(RODBC)
+
+library(knitr)
+library(tidyverse)
+
+# connection to sql server
+con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "SQL Server",
+                      Server = params$DBServerName,
+                      Database = params$DBName)
 
 # connection to sql server
 sqldb <- odbcDriverConnect(paste('driver={SQL Server};server=',params$DBServerName,';database=',params$DBName, sep=""), readOnlyOptimize = TRUE)
@@ -51,26 +53,14 @@ sqldb <- odbcDriverConnect(paste('driver={SQL Server};server=',params$DBServerNa
 
 ```
 
-#CHORDS QA Report
-##This data quality report is derived from the results of the CHORDS data quality query developed to run against the CHORDS VDW V3.1. 
-##Data Partner: 
-###Analyst: 
-###Query Run Date:  `r Sys.Date()`
-###Database: `r params$DBName `
+#CHORDS QA Report: VDW P1 Tables
 
+The purpose of the data quality program is to characterize the data in CHORDS VDW 3.1 priority level 1 (P1) tables. The P1 tables include the following: DEMOGRAPHICS, ENCOUNTERS, CENSUS_LOCATION, DIAGNOSES, and VITAL_SIGNS. The program uses a series of SQL queries operationalized using RStudio to produce this report. These tables provide descriptive information about data stored in a data partner’s VDW and can be used to assess data model conformance, data plausibility, and data completeness. This data quality report was generated from CHORDS `r params$DBName`.
 
-The purpose of the data quality program is to characterize the data in CHORDS VDW 3.1 P1 tables including CENSUS_LOCATION, DEMOGRAPHICS, DIAGNOSES, ENCOUNTERS, and VITAL_SIGNS. The program uses a series of queries to produce this report including tables that provide descriptive information about data stored in these tables and assesses data model conformance, data plausibility, and data completeness. 
-Report Sections:
-
-*          Descriptive information about patients from the DEMOGRAPHICS table(Tables 1-X)
-
-*          Descriptive information about encounters from the ENCOUNTER table(Tables X-X)
-
-*          Descriptive information about patient locations from the CENSUS_LOCATION table(Tables X-X)
-
-*          Descriptive information about diagnoses from the DIAGNOSES table(Tables X-X)
-
-*          Descriptive information about vital signs from the VITAL_SIGNS  table(Tables X-X)
+###Information about the QA program 
+Data Partner: 
+Analyst: 
+Query Run Date:  `r Sys.Date()`
 
 
 ```{r supporting data and functions, include = FALSE}
@@ -131,6 +121,191 @@ valSets <- chordsTables::valSets
 
 ```
 
+## Data Quality Report Results
+
+##Table 1. Records, Patients, Encounters, and Date Ranges by Table
+
+This table contains summary counts and date ranges by table. Distinct encounters and patient are shown for applicable tables. Data ranges should be used to compare data time windows between tables.
+
+```{r tab1_sum_stats}
+
+tab1_dem <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  'RESULT_DT' as fieldname,
+	min(result_dt) as mindt,
+	max(result_dt) as maxdt
+	from demographics")
+
+tab1_dem <- data.frame(nrows = tab1_lab$nrows, 
+                       npats = tab1_lab$npats, 
+                       nencts = NA, 
+                       fieldname = tab1_lab$fieldname, 
+                       mindt = tab1_lab$mindt, 
+                       maxdt = tab1_lab$maxdt)
+
+
+tab1_enc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  count(distinct enc_id) as nencts,
+  'RX_ORDER_DATE' as fieldname,
+	min(rx_order_date) as mindt,
+	max(rx_order_date) as maxdt
+	from encounters")
+
+
+tab1_px <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  count(distinct enc_id) as nencts,
+  'PROCDATE' as fieldname,
+	min(procdate) as mindt,
+	max(procdate) as maxdt
+	from procedures")
+
+
+tab1_sh <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  'CONTACT_DATE' as fieldname,
+  count(distinct enc_id) as nencts,
+	min(contact_date) as mindt,
+	max(contact_date) as maxdt
+	from social_history")
+
+tab1_ps <- odbc::dbGetQuery(con, "select count(*) as nrows
+	from provider_specialty")
+
+tab1_ps <- data.frame(nrows = tab1_ps$nrows, npats = NA, nencts = NA, fieldname = NA, mindt = NA, maxdt = NA)
+
+tab1_all <- bind_rows(tab1_lab, tab1_rx, tab1_px, tab1_sh, tab1_ps) %>% 
+  bind_cols(Table = c("LAB_RESULTS", "PRESCRIBING", "PROCEDURES", "SOCIAL_HISTORY", "PROVIDER_SPECIALTY"), .)
+
+```
+
+```{r tab1_disp, results="asis"}
+
+kable(tab1_all, col.names = c("Table", "Records", "Patients", "Encounters", "Date Field", "Min Date", "Max Date"), format.args = list(big.mark = ",")) 
+  
+```
+
+##Table 2: Missingness Variables across P1 Tables
+
+This table contains record counts for null and unknown values across P2 tables.
+
+
+```{r tab2_res}
+tab2_lab_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN TEST_TYPE IS NULL THEN 1 ELSE 0 END) as TEST_TYPE,
+   SUM(CASE WHEN BATTERY_CD IS NULL THEN 1 ELSE 0 END) as BATTERY_CD,
+   SUM(CASE WHEN LOINC IS NULL THEN 1 ELSE 0 END) as LOINC,
+   SUM(CASE WHEN LOCAL_CD IS NULL THEN 1 ELSE 0 END) as LOCAL_CD,
+   SUM(CASE WHEN RESULT_NUM IS NULL THEN 1 ELSE 0 END) as RESULT_NUM,
+   SUM(CASE WHEN RESULT_UNIT IS NULL THEN 1 ELSE 0 END) as RESULT_UNIT,
+   SUM(CASE WHEN SPECIMEN_SOURCE IS NULL THEN 1 ELSE 0 END) as SPECIMEN_SOURCE
+      FROM lab_results")
+
+tab2_lab_null2 <- data.frame(table = rep("LAB_RESULTS", ncol(tab2_lab_null)), var = names(tab2_lab_null), records_null = t(tab2_lab_null)[,1])
+row.names(tab2_lab_null2) <- NULL
+
+tab2_rx_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN GENERIC_MED_NAME IS NULL THEN 1 ELSE 0 END) as GENERIC_MED_NAME,
+   SUM(CASE WHEN RX_DAYS_SUPPLY IS NULL THEN 1 ELSE 0 END) as RX_DAYS_SUPPLY,
+   SUM(CASE WHEN RX_END_DATE IS NULL THEN 1 ELSE 0 END) as RX_END_DATE,
+   SUM(CASE WHEN RX_START_DATE IS NULL THEN 1 ELSE 0 END) as RX_START_DATE,
+   SUM(CASE WHEN RX_QUANTITY IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY,
+   SUM(CASE WHEN RX_QUANTITY_NUM IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY_NUM,
+   SUM(CASE WHEN RX_QUANTITY_UNIT IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY_UNIT,
+   SUM(CASE WHEN RX_REFILLS IS NULL THEN 1 ELSE 0 END) as RX_REFILLS,
+   SUM(CASE WHEN RXMD IS NULL THEN 1 ELSE 0 END) as RXMD,
+   SUM(CASE WHEN RXNORM IS NULL THEN 1 ELSE 0 END) as RXNORM
+      FROM prescribing")
+
+tab2_rx_null2 <- data.frame(table = rep("PRESCRIBING", ncol(tab2_rx_null)), var = names(tab2_rx_null), records_null = t(tab2_rx_null)[,1])
+row.names(tab2_rx_null2) <- NULL
+
+tab2_px_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN PROVIDER IS NULL THEN 1 ELSE 0 END) as PROVIDER,
+   SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCTYPE,
+   SUM(CASE WHEN PXCNT IS NULL THEN 1 ELSE 0 END) as PXCNT
+      FROM procedures")
+
+tab2_px_null2 <- data.frame(table = rep("PROCEDURES", ncol(tab2_px_null)), var = names(tab2_px_null), records_null = t(tab2_px_null)[,1])
+row.names(tab2_px_null2) <- NULL
+
+tab2_ps_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN SPECIALTY IS NULL THEN 1 ELSE 0 END) as SPECIALTY,
+   SUM(CASE WHEN PROVIDER_TYPE IS NULL THEN 1 ELSE 0 END) as PROVIDER_TYPE,
+   SUM(CASE WHEN PROVIDER_BIRTH_YEAR IS NULL THEN 1 ELSE 0 END) as PROVIDER_BIRTH_YEAR,
+   SUM(CASE WHEN PROVIDER_GENDER IS NULL THEN 1 ELSE 0 END) as PROVIDER_GENDER,
+   SUM(CASE WHEN PROVIDER_RACE IS NULL THEN 1 ELSE 0 END) as PROVIDER_RACE,
+   SUM(CASE WHEN PROVIDER_HISPANIC IS NULL THEN 1 ELSE 0 END) as PROVIDER_HISPANIC
+      FROM provider_specialty")
+
+tab2_ps_null2 <- data.frame(table = rep("PROVIDER_SPECIALTY", ncol(tab2_ps_null)), var = names(tab2_ps_null), records_null = t(tab2_ps_null)[,1])
+row.names(tab2_ps_null2) <- NULL
+
+tab2_sh_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN TOBACCO_USER IS NULL THEN 1 ELSE 0 END) as TOBACCO_USER,
+   SUM(CASE WHEN ALCOHOL_USER IS NULL THEN 1 ELSE 0 END) as ALCOHOL_USER,
+   SUM(CASE WHEN ILL_DRUG_USER IS NULL THEN 1 ELSE 0 END) as ILL_DRUG_USER,
+   SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID
+      FROM social_history")
+
+tab2_sh_null2 <- data.frame(table = rep("SOCIAL_HISTORY", ncol(tab2_sh_null)), var = names(tab2_sh_null), records_null = t(tab2_sh_null)[,1])
+row.names(tab2_sh_null2) <- NULL
+
+tab2_null <- bind_rows(tab2_lab_null2, tab2_rx_null2, tab2_px_null2, tab2_ps_null2, tab2_sh_null2) %>% 
+  mutate(
+    pct_rec = ifelse(table == "LAB_RESULTS", (records_null / tab1_lab$nrows * 100), 
+                     ifelse(table == "PRESCRIBING", (records_null / tab1_rx$nrows * 100), 
+                             ifelse(table == "PROCEDURES", (records_null / tab1_px$nrows * 100), 
+                                     ifelse(table == "PROVIDER_SPECIALTY", (records_null / tab1_ps$nrows * 100), 
+                                             ifelse(table == "SOCIAL_HISTORY", (records_null / tab1_sh$nrows * 100), NA)))))
+  )
+
+tab2_lab_uk <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN TEST_TYPE = 'Unknown' THEN 1 ELSE 0 END) as TEST_TYPE
+      FROM lab_results")
+
+tab2_lab_uk2 <- data.frame(table = rep("LAB_RESULTS", ncol(tab2_lab_uk)), var = names(tab2_lab_uk), records_uk = t(tab2_lab_uk)[,1])
+row.names(tab2_lab_uk2) <- NULL
+
+
+tab2_ps_uk <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN SPECIALTY = 'UNK' THEN 1 ELSE 0 END) as SPECIALTY,
+   SUM(CASE WHEN PROVIDER_TYPE = 999 THEN 1 ELSE 0 END) as PROVIDER_TYPE,
+   SUM(CASE WHEN PROVIDER_GENDER = 'U' THEN 1 ELSE 0 END) as PROVIDER_GENDER,
+   SUM(CASE WHEN PROVIDER_RACE = 'U' THEN 1 ELSE 0 END) as PROVIDER_RACE,
+   SUM(CASE WHEN PROVIDER_HISPANIC = 'U' THEN 1 ELSE 0 END) as PROVIDER_HISPANIC
+      FROM provider_specialty")
+
+tab2_ps_uk2 <- data.frame(table = rep("PROVIDER_SPECIALTY", ncol(tab2_ps_uk)), var = names(tab2_ps_uk), records_uk = t(tab2_ps_uk)[,1])
+row.names(tab2_ps_uk2) <- NULL
+
+tab2_sh_uk <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN TOBACCO_USER = 'U' THEN 1 ELSE 0 END) as TOBACCO_USER,
+   SUM(CASE WHEN ALCOHOL_USER = 'U' THEN 1 ELSE 0 END) as ALCOHOL_USER,
+   SUM(CASE WHEN ILL_DRUG_USER = 'U' THEN 1 ELSE 0 END) as ILL_DRUG_USER
+      FROM social_history")
+
+tab2_sh_uk2 <- data.frame(table = rep("SOCIAL_HISTORY", ncol(tab2_sh_uk)), var = names(tab2_sh_uk), records_uk = t(tab2_sh_uk)[,1])
+row.names(tab2_sh_uk2) <- NULL
+
+tab2_uk <- bind_rows(tab2_lab_uk2, tab2_ps_uk2, tab2_sh_uk2) %>% 
+  mutate(
+    pct_rec_uk = ifelse(table == "LAB_RESULTS", (records_uk / tab1_lab$nrows * 100), 
+                                     ifelse(table == "PROVIDER_SPECIALTY", (records_uk / tab1_ps$nrows * 100), 
+                                             ifelse(table == "SOCIAL_HISTORY", (records_uk / tab1_sh$nrows * 100), NA)))
+  )
+
+tab2_all <- left_join(tab2_null, tab2_uk, by = c("table", "var"))
+
+```
+
+```{r tab2_disp, results="asis"}
+
+kable(tab2_all, col.names = c("Table", "Variable", "Null Records", "Percent of Records Null", "Unknown Records", "Percent of Records Unknown"), digits = 2, format.args = list(big.mark = ","))
+```
+
+
 #Demographics
 
 ##Table 1 . Overall demographics, Dataset: DEMOGRAPHICS
@@ -178,6 +353,47 @@ knitr::kable(demogTable, col.names=c("Characteristic","Frequency","Percent of un
 
 `r ifelse(demogSummary$nDemogRows==demogSummary$nPatsDemog," ","The demographics table has duplicate rows, by person_id")`
 
+
+## Table 4. 
+
+```{r tab4_res}
+
+tab4 <- odbc::dbGetQuery(con, 
+  "select year(rx_order_date) as year,
+    count(*) as nrows, 
+	  count(distinct person_id) as npats
+	  from prescribing
+	    group by year(rx_order_date)
+      order by year(rx_order_date)")
+
+tab4_avg_pats <- odbc::dbGetQuery(con, 
+  "select year(rx_order_date) as year,
+    count(*) as nrows
+	  from prescribing
+	    group by year(rx_order_date), person_id
+      order by year(rx_order_date)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max))%>% 
+  mutate(
+    pats_val = paste0(median, "(", min, ", ", max, ")")
+  )
+
+tab4_all <- left_join(tab4, tab4_avg_pats, by = "year") %>% 
+  mutate(
+    ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
+  ) %>% 
+  select(year, nrows, ptc_rec, npats, median, min, max)
+
+tab4_all$year <- as.character(tab6_all$year)
+
+```
+
+```{r tab4_disp, results="asis"}
+
+kable(tab4_all, col.names = c("Year", "Total Number of Prescriptions", "Percent Change From Last Year", "Total Number of Patients", "Median number of Prescriptions per patient", "Minimum Number of Prescriptions Per Patient", "Maximum Number of Prescriptions Per Patient"), format.args = list(big.mark = ","))
+
+```
  
 ```{r demographic counts, include=F}
 demogCounts <- sqlQuery(sqldb, 
