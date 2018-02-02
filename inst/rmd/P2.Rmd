@@ -395,7 +395,7 @@ kable(tab5_sub, col.names = c("BATTERY_CD", "Number of Recorded Lab Tests", "Per
 
 The following tables explore the contents of the PRESCRIBING table with a focus on trends over time and most common types of medications ordered. 
 
-##Table 6: Annual Trends in Prescribing Data - the Total Number of Recorded Medication Orders , the Percent Change from the Previous Year, the Total Number of Patients and the Mean, Maximum and Minimum Numbers of Orders & Prescriptions per Patient
+##Table 6: Annual Trends in Prescribing Data - the Total Number of Recorded Medication Orders, the Percent Change from the Previous Year, the Total Number of Patients and the Mean, Maximum and Minimum Numbers of Orders & Prescriptions per Patient
 
 This table displays trends in PRESCRIBING record volume over time as well as patient volume represented in the table. PRESCRIBING records are attributed to a year based on RX_ORDER_DATE.
 
