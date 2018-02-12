@@ -127,7 +127,7 @@ valSets <- chordsTables::valSets
 
 This table contains summary counts and date ranges by table. Distinct encounters and patient are shown for applicable tables. Data ranges should be used to compare data time windows between tables.
 
-```{r tab1_sum_stats}
+```{r tab1_sum_stats, echo = F}
 
 tab1_dem <- odbc::dbGetQuery(con, "select count(*) as nrows, 
 	count(distinct person_id) as npats
@@ -178,7 +178,7 @@ tab1_all <- bind_rows(tab1_dem, tab1_enc, tab1_loc, tab1_dx, tab1_vs) %>%
 
 ```
 
-```{r tab1_disp, results="asis"}
+```{r tab1_disp, results="asis", echo = F}
 
 kable(tab1_all, col.names = c("Table", "Records", "Patients", "Encounters", "Date Field", "Min Date", "Max Date"), format.args = list(big.mark = ",")) 
   
@@ -186,10 +186,10 @@ kable(tab1_all, col.names = c("Table", "Records", "Patients", "Encounters", "Dat
 
 ##Table 2: Missingness Variables across P1 Tables
 
-This table contains record counts for null and unknown values across P1☺ tables.
+This table contains record counts for null and unknown values across P1 tables.
 
 
-```{r tab2_res}
+```{r tab2_res, echo = F}
 tab2_demo_null <- odbc::dbGetQuery(con, 
   "SELECT SUM(CASE WHEN BIRTH_DATE IS NULL THEN 1 ELSE 0 END) as BIRTH_DATE,
    SUM(CASE WHEN GENDER IS NULL THEN 1 ELSE 0 END) as GENDER,
@@ -266,8 +266,7 @@ tab2_null <- bind_rows(tab2_demo_null2, tab2_enc_null2, tab2_cl_null2, tab2_dx_n
   )
 
 tab2_demo_uk <- odbc::dbGetQuery(con, 
-  "SELECT 
-   SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
+  "SELECT SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
    SUM(CASE WHEN PRIMARY_LANGUAGE = 'UNK' THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
    SUM(CASE WHEN NEEDS_INTERPRETER = 'U' THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
    SUM(CASE WHEN RACE1 = 'UN' THEN 1 ELSE 0 END) as RACE1,
@@ -280,7 +279,7 @@ tab2_demo_uk2 <- data.frame(table = rep("DEMOGRAPHICS", ncol(tab2_demo_uk)), var
 row.names(tab2_demo_uk2) <- NULL
 
 tab2_enc_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN PROVIDER = 'UKNOWN' THEN 1 ELSE 0 END) as PROVIDER
+  "SELECT SUM(CASE WHEN PROVIDER = 'UNKNOWN' THEN 1 ELSE 0 END) as PROVIDER
       FROM ENCOUNTERS")
 
 tab2_enc_uk2 <- data.frame(table = rep("ENCOUNTERS", ncol(tab2_enc_uk)), var = names(tab2_enc_uk), records_uk = t(tab2_enc_uk)[,1])
@@ -296,7 +295,7 @@ tab2_all <- left_join(tab2_null, tab2_uk, by = c("table", "var"))
 
 ```
 
-```{r tab2_disp, results="asis"}
+```{r tab2_disp, results="asis", echo=FALSE}
 
 kable(tab2_all, col.names = c("Table", "Variable", "Null Records", "Percent of Records Null", "Unknown Records", "Percent of Records Unknown"), digits = 2, format.args = list(big.mark = ","))
 ```
@@ -365,7 +364,7 @@ demogCounts <- trimChrVars(demogCounts)
 
 ```
 
-## Table 2. Top 5 Patient Primary Languages
+## Table 4. Top 5 Patient Primary Languages
 
 ```{r primary language, echo=F}
 primLang <- demogCounts %>% 
@@ -386,7 +385,7 @@ knitr::kable(primLang[1:5, c('primary_language', 'InEnglish','langCnt','langPct'
             format.args = list(big.mark = ","))
 ```
 
-## Table 3. Gender Distribution 
+## Table 5. Gender Distribution 
 
 ```{r gender , echo=F}
 gender <-   demogCounts %>% 
@@ -407,7 +406,7 @@ knitr::kable(gender[    c('gender', 'decode','count','countPct')],
 
 ```
 
-## Table 4. Race Distribution
+## Table 6. Race Distribution
 
 ```{r race , echo=F}
 race <-   demogCounts %>% 
@@ -428,6 +427,27 @@ knitr::kable(race[    c('race1', 'decode','count','countPct')],
             format.args = list(big.mark = ","))
 
 ```
+
+## Table 7. Hispanic Ethnicity Distribution
+
+```{r ethnicity , echo=F}
+ethn <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN HISPANIC = 'Y' THEN 1 ELSE 0 END) as Yes,
+   SUM(CASE WHEN HISPANIC = 'N' THEN 1 ELSE 0 END) as No,
+   SUM(CASE WHEN HISPANIC = 'U' THEN 1 ELSE 0 END) as Unknown
+      FROM DEMOGRAPHICS")
+
+ethn2 <- data.frame(Value = c("Y", "N", "U"),
+                    Label = names(ethn), 
+                    Frequency = c(ethn$yes, ethn$no, ethn$unknown), 
+                    Percent = c((ethn$yes/tab1_dem$npats * 100), (ethn$no/tab1_dem$npats * 100), (ethn$unknown/tab1_dem$npats * 100)))
+
+knitr::kable(ethn2,
+            format.args = list(big.mark = ","))
+
+```
+
+``
 
 ```{r encounter table, include=FALSE}
 
@@ -465,7 +485,7 @@ encPrimKeyRows <- encSumm$encCnt
 nEncPats <- encSumm$personCnt
 ```
 
-#Encounter table 
+#Examination of the ENCOUNTERS Table
 
 Total rows in the dataset: `r encRows`
 
@@ -480,7 +500,7 @@ Month and year of last encounter: `r format(as.Date(encSumm$lastEnc),"%B %Y")`
 `r ifelse(encRows== encPrimKeyRows," ","The encounter table has duplicate rows, by enc_id")`
 
 
-##Table 5 . Count of Distinct Patients by Age Group and Year of Utilization
+##Table 8 . Count of Distinct Patients by Age Group and Year of Utilization
 
 ```{r echo=F}
  
@@ -532,20 +552,54 @@ knitr::kable(encPersonAgeYear_tx,
 
 Percentages are calculated with all patients within the calendar year as the denominator
 
-## Figure 1. Count of distinct patients by age group and year of utilization, Dataset: ENCOUNTERS
+## Figure 1. Count of Distinct Patients by Age Group and Year of Utilization
 
 ```{r echo=F}
 ggplot(data = encPersonAgeYear, aes(x =aYear, y = Freq, fill = ageCat)) + 
     geom_bar(stat = "identity") + labs(y='Count', x='Year', fill='Age at encounter')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-## Figure 2. Distinct patients by age group and year of utilization, as a percentage of all patients in the calendar year, Dataset: ENCOUNTERS
+##Table 9. Anual Trends in the Total Number of Recorded Encounters, the Mean Number of Encounters, the Mean Number of Patients and the Percent Change from the Previous Year, by Calendar Year
 
-```{r echo=F}
+```{r tab9_res, echo = F}
 
-ggplot(data = encPersonAgeYear, aes(x =aYear, y = pct , fill = ageCat )) + 
-    geom_bar(stat = "identity") + labs(y='Percent', x='Year', fill='Age at encounter') +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+tab9 <- odbc::dbGetQuery(con, 
+  "select year(adate) as year,
+    count(*) as nrows, 
+	  count(distinct person_id) as npats
+	  from encounters
+	    group by year(adate)
+      order by year(adate)")
+
+tab9_avg_pats <- odbc::dbGetQuery(con, 
+  "select year(adate) as year,
+    count(*) as nrows
+	  from encounters
+	    group by year(adate), person_id
+      order by year(adate)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max))%>% 
+  mutate(
+    pats_val = paste0(median, "(", min, ", ", max, ")")
+  )
+
+tab9_all <- left_join(tab9, tab9_avg_pats, by = "year") %>% 
+  mutate(
+    ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
+  ) %>% 
+  select(year, nrows, ptc_rec, npats, pats_val)
+
+tab9_all$year <- as.character(tab9_all$year)
+
 ```
+
+```{r tab9_dis, results="asis"}
+
+kable(tab9_all, col.names = c("Year", "Total Number of Recorded Encountres", "Percent Change from Previous Year", "Total Number of Patients with at Least One Encounter", "Median Number of Encounters per Patient (Min, Max)"), format.args = list(big.mark = ","))
+
+```
+
 
 ```{r encounter types by year and month, include=F}
 encEncType_YM  <- sqlQuery(sqldb,
@@ -557,6 +611,7 @@ encEncType_YM  <- sqlQuery(sqldb,
                  as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
                  max=maxQryRows
                  )
+
 encEncType_YM <- within(encEncType_YM,{
                adate_YM <- as.Date(paste(as.character(aYear),as.character(aMon),'01',sep='-'))
 })
@@ -564,7 +619,7 @@ encEncType_YM <- within(encEncType_YM,{
 ```
 
 
-## Table 6. Count of encounters by encounter type , Dataset: ENCOUNTERS 
+## Table 10. Count of Encounters by Encounter Ttype 
 
 ```{r include=F}
 encEncType <- encEncType_YM %>% group_by(encType) %>% summarize(Freq = sum(rowCnt))
@@ -574,9 +629,12 @@ encEncType <- within(encEncType, {
                            # validVal <- ifelse(is.na(decode),'No','Yes')
                             decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))
                             })[c('encType','decode','Freq','pct')]
+
+encEncType <- encEncType %>% 
+  select(-encType)
 ```
 ```{r echo=FALSE}
-knitr::kable(encEncType, col.names=c("Raw value","Value name",'Frequency','Percent'), 
+knitr::kable(encEncType, col.names=c("Encounter Type",'Number of Encounters','Percent of Total Encounters'), 
              row.names=FALSE, 
              format.args = list(big.mark = ","))
 
