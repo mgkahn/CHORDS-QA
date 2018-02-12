@@ -130,53 +130,51 @@ This table contains summary counts and date ranges by table. Distinct encounters
 ```{r tab1_sum_stats}
 
 tab1_dem <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-	count(distinct person_id) as npats,
-  'RESULT_DT' as fieldname,
-	min(result_dt) as mindt,
-	max(result_dt) as maxdt
+	count(distinct person_id) as npats
 	from demographics")
 
-tab1_dem <- data.frame(nrows = tab1_lab$nrows, 
-                       npats = tab1_lab$npats, 
+tab1_dem <- data.frame(nrows = tab1_dem$nrows, 
+                       npats = tab1_dem$npats, 
                        nencts = NA, 
-                       fieldname = tab1_lab$fieldname, 
-                       mindt = tab1_lab$mindt, 
-                       maxdt = tab1_lab$maxdt)
+                       fieldname = NA, 
+                       mindt = NA,
+                       maxdt = NA)
 
 
 tab1_enc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
 	count(distinct person_id) as npats,
   count(distinct enc_id) as nencts,
-  'RX_ORDER_DATE' as fieldname,
-	min(rx_order_date) as mindt,
-	max(rx_order_date) as maxdt
+  'ADATE' as fieldname,
+	min(ADATE) as mindt,
+	max(ADATE) as maxdt
 	from encounters")
 
 
-tab1_px <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+tab1_loc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats
+	from census_location")
+
+
+tab1_dx <- odbc::dbGetQuery(con, "select count(*) as nrows, 
 	count(distinct person_id) as npats,
+  'ADATE' as fieldname,
   count(distinct enc_id) as nencts,
-  'PROCDATE' as fieldname,
-	min(procdate) as mindt,
-	max(procdate) as maxdt
-	from procedures")
+	min(ADATE) as mindt,
+	max(ADATE) as maxdt
+	from diagnoses")
 
-
-tab1_sh <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-	count(distinct person_id) as npats,
-  'CONTACT_DATE' as fieldname,
+tab1_vs <- odbc::dbGetQuery(con, "select count(*) as nrows,
+  count(distinct person_id) as npats,
+  'MEASURE_DATE' as fieldname,
   count(distinct enc_id) as nencts,
-	min(contact_date) as mindt,
-	max(contact_date) as maxdt
-	from social_history")
+	min(measure_date) as mindt,
+	max(measure_date) as maxdt
+	from vital_signs")
 
-tab1_ps <- odbc::dbGetQuery(con, "select count(*) as nrows
-	from provider_specialty")
+tab1_loc <- data.frame(nrows = tab1_loc$nrows, npats = tab1_loc$npats, nencts = NA, fieldname = NA, mindt = NA, maxdt = NA)
 
-tab1_ps <- data.frame(nrows = tab1_ps$nrows, npats = NA, nencts = NA, fieldname = NA, mindt = NA, maxdt = NA)
-
-tab1_all <- bind_rows(tab1_lab, tab1_rx, tab1_px, tab1_sh, tab1_ps) %>% 
-  bind_cols(Table = c("LAB_RESULTS", "PRESCRIBING", "PROCEDURES", "SOCIAL_HISTORY", "PROVIDER_SPECIALTY"), .)
+tab1_all <- bind_rows(tab1_dem, tab1_enc, tab1_loc, tab1_dx, tab1_vs) %>% 
+  bind_cols(Table = c("DEMOGRAPHICS", "ENCOUNTERS", "CENSUS_LOCATION", "DIAGNOSES", "VITAL_SIGNS"), .)
 
 ```
 
@@ -188,112 +186,110 @@ kable(tab1_all, col.names = c("Table", "Records", "Patients", "Encounters", "Dat
 
 ##Table 2: Missingness Variables across P1 Tables
 
-This table contains record counts for null and unknown values across P2 tables.
+This table contains record counts for null and unknown values across P1☺ tables.
 
 
 ```{r tab2_res}
-tab2_lab_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN TEST_TYPE IS NULL THEN 1 ELSE 0 END) as TEST_TYPE,
-   SUM(CASE WHEN BATTERY_CD IS NULL THEN 1 ELSE 0 END) as BATTERY_CD,
-   SUM(CASE WHEN LOINC IS NULL THEN 1 ELSE 0 END) as LOINC,
-   SUM(CASE WHEN LOCAL_CD IS NULL THEN 1 ELSE 0 END) as LOCAL_CD,
-   SUM(CASE WHEN RESULT_NUM IS NULL THEN 1 ELSE 0 END) as RESULT_NUM,
-   SUM(CASE WHEN RESULT_UNIT IS NULL THEN 1 ELSE 0 END) as RESULT_UNIT,
-   SUM(CASE WHEN SPECIMEN_SOURCE IS NULL THEN 1 ELSE 0 END) as SPECIMEN_SOURCE
-      FROM lab_results")
+tab2_demo_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN BIRTH_DATE IS NULL THEN 1 ELSE 0 END) as BIRTH_DATE,
+   SUM(CASE WHEN GENDER IS NULL THEN 1 ELSE 0 END) as GENDER,
+   SUM(CASE WHEN PRIMARY_LANGUAGE IS NULL THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
+   SUM(CASE WHEN NEEDS_INTERPRETER IS NULL THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
+   SUM(CASE WHEN RACE1 IS NULL THEN 1 ELSE 0 END) as RACE1,
+   SUM(CASE WHEN HISPANIC IS NULL THEN 1 ELSE 0 END) as HISPANIC,
+   SUM(CASE WHEN SEXUAL_ORIENTATION IS NULL THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
+   SUM(CASE WHEN GENDER_IDENTITY IS NULL THEN 1 ELSE 0 END) as GENDER_IDENTITY
+      FROM DEMOGRAPHICS")
 
-tab2_lab_null2 <- data.frame(table = rep("LAB_RESULTS", ncol(tab2_lab_null)), var = names(tab2_lab_null), records_null = t(tab2_lab_null)[,1])
-row.names(tab2_lab_null2) <- NULL
+tab2_demo_null2 <- data.frame(table = rep("DEMOGRAPHICS", ncol(tab2_demo_null)), var = names(tab2_demo_null), records_null = t(tab2_demo_null)[,1])
+row.names(tab2_demo_null2) <- NULL
 
-tab2_rx_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN GENERIC_MED_NAME IS NULL THEN 1 ELSE 0 END) as GENERIC_MED_NAME,
-   SUM(CASE WHEN RX_DAYS_SUPPLY IS NULL THEN 1 ELSE 0 END) as RX_DAYS_SUPPLY,
-   SUM(CASE WHEN RX_END_DATE IS NULL THEN 1 ELSE 0 END) as RX_END_DATE,
-   SUM(CASE WHEN RX_START_DATE IS NULL THEN 1 ELSE 0 END) as RX_START_DATE,
-   SUM(CASE WHEN RX_QUANTITY IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY,
-   SUM(CASE WHEN RX_QUANTITY_NUM IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY_NUM,
-   SUM(CASE WHEN RX_QUANTITY_UNIT IS NULL THEN 1 ELSE 0 END) as RX_QUANTITY_UNIT,
-   SUM(CASE WHEN RX_REFILLS IS NULL THEN 1 ELSE 0 END) as RX_REFILLS,
-   SUM(CASE WHEN RXMD IS NULL THEN 1 ELSE 0 END) as RXMD,
-   SUM(CASE WHEN RXNORM IS NULL THEN 1 ELSE 0 END) as RXNORM
-      FROM prescribing")
+tab2_enc_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN ADATE IS NULL THEN 1 ELSE 0 END) as ADATE,
+   SUM(CASE WHEN DDATE IS NULL THEN 1 ELSE 0 END) as DDATE,
+   SUM(CASE WHEN PROVIDER IS NULL THEN 1 ELSE 0 END) as PROVIDER,
+   SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCOUNTER_SUBTYPE
+      FROM ENCOUNTERS")
 
-tab2_rx_null2 <- data.frame(table = rep("PRESCRIBING", ncol(tab2_rx_null)), var = names(tab2_rx_null), records_null = t(tab2_rx_null)[,1])
-row.names(tab2_rx_null2) <- NULL
+tab2_enc_null2 <- data.frame(table = rep("ENCOUNTERS", ncol(tab2_enc_null)), var = names(tab2_enc_null), records_null = t(tab2_enc_null)[,1])
+row.names(tab2_enc_null2) <- NULL
 
-tab2_px_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN PROVIDER IS NULL THEN 1 ELSE 0 END) as PROVIDER,
+tab2_cl_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN GEOCODE IS NULL THEN 1 ELSE 0 END) as GEOCODE,
+   SUM(CASE WHEN CITY_GEOCODE IS NULL THEN 1 ELSE 0 END) as CITY_GEOCODE
+      FROM CENSUS_LOCATION")
+
+tab2_cl_null2 <- data.frame(table = rep("CENSUS_LOCATION", ncol(tab2_cl_null)), var = names(tab2_cl_null), records_null = t(tab2_cl_null)[,1])
+row.names(tab2_cl_null2) <- NULL
+
+tab2_dx_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
+   SUM(CASE WHEN ADATE IS NULL THEN 1 ELSE 0 END) as ADATE,
+   SUM(CASE WHEN DX IS NULL THEN 1 ELSE 0 END) as DX,
+   SUM(CASE WHEN PRINCIPAL_DX IS NULL THEN 1 ELSE 0 END) as PRINCIPAL_DX,
+   SUM(CASE WHEN PRIMARY_DX IS NULL THEN 1 ELSE 0 END) as PRIMARY_DX
+      FROM DIAGNOSES")
+
+tab2_dx_null2 <- data.frame(table = rep("DIAGNOSES", ncol(tab2_dx_null)), var = names(tab2_dx_null), records_null = t(tab2_dx_null)[,1])
+row.names(tab2_dx_null2) <- NULL
+
+tab2_vs_null <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
    SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCTYPE,
-   SUM(CASE WHEN PXCNT IS NULL THEN 1 ELSE 0 END) as PXCNT
-      FROM procedures")
+   SUM(CASE WHEN HT IS NULL THEN 1 ELSE 0 END) as HT,
+   SUM(CASE WHEN WT IS NULL THEN 1 ELSE 0 END) as WT,
+   SUM(CASE WHEN DIASTOLIC IS NULL THEN 1 ELSE 0 END) as DIASTOLIC,
+   SUM(CASE WHEN SYSTOLIC IS NULL THEN 1 ELSE 0 END) as SYSTOLIC,
+   SUM(CASE WHEN HT_RAW IS NULL THEN 1 ELSE 0 END) as HT_RAW,
+   SUM(CASE WHEN WT_RAW IS NULL THEN 1 ELSE 0 END) as WT_RAW,
+   SUM(CASE WHEN BMI_RAW IS NULL THEN 1 ELSE 0 END) as BMI_RAW,
+   SUM(CASE WHEN DIASTOLIC_RAW IS NULL THEN 1 ELSE 0 END) as DIASTOLIC_RAW,
+   SUM(CASE WHEN SYSTOLIC_RAW IS NULL THEN 1 ELSE 0 END) as SYSTOLIC_RAW,
+   SUM(CASE WHEN BP_TYPE IS NULL THEN 1 ELSE 0 END) as BP_TYPE,
+   SUM(CASE WHEN POSITION IS NULL THEN 1 ELSE 0 END) as POSITION,
+   SUM(CASE WHEN HEAD_CIR_RAW IS NULL THEN 1 ELSE 0 END) as HEAD_CIR_RAW,
+   SUM(CASE WHEN RESPIR_RAW IS NULL THEN 1 ELSE 0 END) as RESPIR_RAW,
+   SUM(CASE WHEN TEMP_RAW IS NULL THEN 1 ELSE 0 END) as TEMP_RAW,
+   SUM(CASE WHEN PULSE_RAW IS NULL THEN 1 ELSE 0 END) as PULSE_RAW
+      FROM VITAL_SIGNS")
 
-tab2_px_null2 <- data.frame(table = rep("PROCEDURES", ncol(tab2_px_null)), var = names(tab2_px_null), records_null = t(tab2_px_null)[,1])
-row.names(tab2_px_null2) <- NULL
+tab2_vs_null2 <- data.frame(table = rep("VITAL_SIGNS", ncol(tab2_vs_null)), var = names(tab2_vs_null), records_null = t(tab2_vs_null)[,1])
+row.names(tab2_vs_null2) <- NULL
 
-tab2_ps_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN SPECIALTY IS NULL THEN 1 ELSE 0 END) as SPECIALTY,
-   SUM(CASE WHEN PROVIDER_TYPE IS NULL THEN 1 ELSE 0 END) as PROVIDER_TYPE,
-   SUM(CASE WHEN PROVIDER_BIRTH_YEAR IS NULL THEN 1 ELSE 0 END) as PROVIDER_BIRTH_YEAR,
-   SUM(CASE WHEN PROVIDER_GENDER IS NULL THEN 1 ELSE 0 END) as PROVIDER_GENDER,
-   SUM(CASE WHEN PROVIDER_RACE IS NULL THEN 1 ELSE 0 END) as PROVIDER_RACE,
-   SUM(CASE WHEN PROVIDER_HISPANIC IS NULL THEN 1 ELSE 0 END) as PROVIDER_HISPANIC
-      FROM provider_specialty")
-
-tab2_ps_null2 <- data.frame(table = rep("PROVIDER_SPECIALTY", ncol(tab2_ps_null)), var = names(tab2_ps_null), records_null = t(tab2_ps_null)[,1])
-row.names(tab2_ps_null2) <- NULL
-
-tab2_sh_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN TOBACCO_USER IS NULL THEN 1 ELSE 0 END) as TOBACCO_USER,
-   SUM(CASE WHEN ALCOHOL_USER IS NULL THEN 1 ELSE 0 END) as ALCOHOL_USER,
-   SUM(CASE WHEN ILL_DRUG_USER IS NULL THEN 1 ELSE 0 END) as ILL_DRUG_USER,
-   SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID
-      FROM social_history")
-
-tab2_sh_null2 <- data.frame(table = rep("SOCIAL_HISTORY", ncol(tab2_sh_null)), var = names(tab2_sh_null), records_null = t(tab2_sh_null)[,1])
-row.names(tab2_sh_null2) <- NULL
-
-tab2_null <- bind_rows(tab2_lab_null2, tab2_rx_null2, tab2_px_null2, tab2_ps_null2, tab2_sh_null2) %>% 
+tab2_null <- bind_rows(tab2_demo_null2, tab2_enc_null2, tab2_cl_null2, tab2_dx_null2, tab2_vs_null2) %>% 
   mutate(
-    pct_rec = ifelse(table == "LAB_RESULTS", (records_null / tab1_lab$nrows * 100), 
-                     ifelse(table == "PRESCRIBING", (records_null / tab1_rx$nrows * 100), 
-                             ifelse(table == "PROCEDURES", (records_null / tab1_px$nrows * 100), 
-                                     ifelse(table == "PROVIDER_SPECIALTY", (records_null / tab1_ps$nrows * 100), 
-                                             ifelse(table == "SOCIAL_HISTORY", (records_null / tab1_sh$nrows * 100), NA)))))
+    pct_rec = ifelse(table == "DEMOGRAPHICS", (records_null / tab1_dem$nrows * 100), 
+                     ifelse(table == "ENCOUNTERS", (records_null / tab1_enc$nrows * 100), 
+                             ifelse(table == "CENSUS_LOCATION", (records_null / tab1_loc$nrows * 100), 
+                                     ifelse(table == "DIAGNOSES", (records_null / tab1_dx$nrows * 100), 
+                                             ifelse(table == "VITAL_SIGNS", (records_null / tab1_vs$nrows * 100), NA)))))
   )
 
-tab2_lab_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN TEST_TYPE = 'Unknown' THEN 1 ELSE 0 END) as TEST_TYPE
-      FROM lab_results")
+tab2_demo_uk <- odbc::dbGetQuery(con, 
+  "SELECT 
+   SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
+   SUM(CASE WHEN PRIMARY_LANGUAGE = 'UNK' THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
+   SUM(CASE WHEN NEEDS_INTERPRETER = 'U' THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
+   SUM(CASE WHEN RACE1 = 'UN' THEN 1 ELSE 0 END) as RACE1,
+   SUM(CASE WHEN HISPANIC = 'U' THEN 1 ELSE 0 END) as HISPANIC,
+   SUM(CASE WHEN SEXUAL_ORIENTATION = 'UN' THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
+   SUM(CASE WHEN GENDER_IDENTITY = 'UN' THEN 1 ELSE 0 END) as GENDER_IDENTITY
+      FROM DEMOGRAPHICS")
 
-tab2_lab_uk2 <- data.frame(table = rep("LAB_RESULTS", ncol(tab2_lab_uk)), var = names(tab2_lab_uk), records_uk = t(tab2_lab_uk)[,1])
-row.names(tab2_lab_uk2) <- NULL
+tab2_demo_uk2 <- data.frame(table = rep("DEMOGRAPHICS", ncol(tab2_demo_uk)), var = names(tab2_demo_uk), records_uk = t(tab2_demo_uk)[,1])
+row.names(tab2_demo_uk2) <- NULL
 
+tab2_enc_uk <- odbc::dbGetQuery(con, 
+  "SELECT SUM(CASE WHEN PROVIDER = 'UKNOWN' THEN 1 ELSE 0 END) as PROVIDER
+      FROM ENCOUNTERS")
 
-tab2_ps_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN SPECIALTY = 'UNK' THEN 1 ELSE 0 END) as SPECIALTY,
-   SUM(CASE WHEN PROVIDER_TYPE = 999 THEN 1 ELSE 0 END) as PROVIDER_TYPE,
-   SUM(CASE WHEN PROVIDER_GENDER = 'U' THEN 1 ELSE 0 END) as PROVIDER_GENDER,
-   SUM(CASE WHEN PROVIDER_RACE = 'U' THEN 1 ELSE 0 END) as PROVIDER_RACE,
-   SUM(CASE WHEN PROVIDER_HISPANIC = 'U' THEN 1 ELSE 0 END) as PROVIDER_HISPANIC
-      FROM provider_specialty")
+tab2_enc_uk2 <- data.frame(table = rep("ENCOUNTERS", ncol(tab2_enc_uk)), var = names(tab2_enc_uk), records_uk = t(tab2_enc_uk)[,1])
+row.names(tab2_enc_uk2) <- NULL
 
-tab2_ps_uk2 <- data.frame(table = rep("PROVIDER_SPECIALTY", ncol(tab2_ps_uk)), var = names(tab2_ps_uk), records_uk = t(tab2_ps_uk)[,1])
-row.names(tab2_ps_uk2) <- NULL
-
-tab2_sh_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN TOBACCO_USER = 'U' THEN 1 ELSE 0 END) as TOBACCO_USER,
-   SUM(CASE WHEN ALCOHOL_USER = 'U' THEN 1 ELSE 0 END) as ALCOHOL_USER,
-   SUM(CASE WHEN ILL_DRUG_USER = 'U' THEN 1 ELSE 0 END) as ILL_DRUG_USER
-      FROM social_history")
-
-tab2_sh_uk2 <- data.frame(table = rep("SOCIAL_HISTORY", ncol(tab2_sh_uk)), var = names(tab2_sh_uk), records_uk = t(tab2_sh_uk)[,1])
-row.names(tab2_sh_uk2) <- NULL
-
-tab2_uk <- bind_rows(tab2_lab_uk2, tab2_ps_uk2, tab2_sh_uk2) %>% 
+tab2_uk <- bind_rows(tab2_demo_uk2, tab2_enc_uk2) %>% 
   mutate(
-    pct_rec_uk = ifelse(table == "LAB_RESULTS", (records_uk / tab1_lab$nrows * 100), 
-                                     ifelse(table == "PROVIDER_SPECIALTY", (records_uk / tab1_ps$nrows * 100), 
-                                             ifelse(table == "SOCIAL_HISTORY", (records_uk / tab1_sh$nrows * 100), NA)))
+    pct_rec_uk = ifelse(table == "DEMOGRAPHICS", (records_uk / tab1_dem$nrows * 100), 
+                                     ifelse(table == "ENCOUNTERS", (records_uk / tab1_enc$nrows * 100), NA))
   )
 
 tab2_all <- left_join(tab2_null, tab2_uk, by = c("table", "var"))
@@ -306,9 +302,9 @@ kable(tab2_all, col.names = c("Table", "Variable", "Null Records", "Percent of R
 ```
 
 
-#Demographics
+#Examination of the DEMOGRAPHICS Table
 
-##Table 1 . Overall demographics, Dataset: DEMOGRAPHICS
+##Table 3. Overall demographics
 
 ```{r Demographic table, include=F}
 nDemogRows <- sqlQuery(sqldb, 'select  count(*) as nDemogRows FROM  demographics') 
@@ -353,47 +349,6 @@ knitr::kable(demogTable, col.names=c("Characteristic","Frequency","Percent of un
 
 `r ifelse(demogSummary$nDemogRows==demogSummary$nPatsDemog," ","The demographics table has duplicate rows, by person_id")`
 
-
-## Table 4. 
-
-```{r tab4_res}
-
-tab4 <- odbc::dbGetQuery(con, 
-  "select year(rx_order_date) as year,
-    count(*) as nrows, 
-	  count(distinct person_id) as npats
-	  from prescribing
-	    group by year(rx_order_date)
-      order by year(rx_order_date)")
-
-tab4_avg_pats <- odbc::dbGetQuery(con, 
-  "select year(rx_order_date) as year,
-    count(*) as nrows
-	  from prescribing
-	    group by year(rx_order_date), person_id
-      order by year(rx_order_date)") %>% 
-  arrange(year) %>% 
-  group_by(year) %>% 
-  summarise_all(funs(mean, median, min, max))%>% 
-  mutate(
-    pats_val = paste0(median, "(", min, ", ", max, ")")
-  )
-
-tab4_all <- left_join(tab4, tab4_avg_pats, by = "year") %>% 
-  mutate(
-    ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
-  ) %>% 
-  select(year, nrows, ptc_rec, npats, median, min, max)
-
-tab4_all$year <- as.character(tab6_all$year)
-
-```
-
-```{r tab4_disp, results="asis"}
-
-kable(tab4_all, col.names = c("Year", "Total Number of Prescriptions", "Percent Change From Last Year", "Total Number of Patients", "Median number of Prescriptions per patient", "Minimum Number of Prescriptions Per Patient", "Maximum Number of Prescriptions Per Patient"), format.args = list(big.mark = ","))
-
-```
  
 ```{r demographic counts, include=F}
 demogCounts <- sqlQuery(sqldb, 
@@ -410,7 +365,7 @@ demogCounts <- trimChrVars(demogCounts)
 
 ```
 
-## Table 2. Top 5 Patient Primary Languages , Dataset: DEMOGRAPHICS 
+## Table 2. Top 5 Patient Primary Languages
 
 ```{r primary language, echo=F}
 primLang <- demogCounts %>% 
@@ -431,7 +386,7 @@ knitr::kable(primLang[1:5, c('primary_language', 'InEnglish','langCnt','langPct'
             format.args = list(big.mark = ","))
 ```
 
-## Table 3. Gender distribution , Dataset: DEMOGRAPHICS 
+## Table 3. Gender Distribution 
 
 ```{r gender , echo=F}
 gender <-   demogCounts %>% 
@@ -452,7 +407,7 @@ knitr::kable(gender[    c('gender', 'decode','count','countPct')],
 
 ```
 
-## Table 4. Race distribution , Dataset: DEMOGRAPHICS 
+## Table 4. Race Distribution
 
 ```{r race , echo=F}
 race <-   demogCounts %>% 
@@ -516,7 +471,7 @@ Total rows in the dataset: `r encRows`
 
 Total unique combinations of the primary key: `r encPrimKeyRows `
 
-Total patients in the encouter table: `r nEncPats`
+Total patients in the encounter table: `r nEncPats`
 
 Month and year of first encounter: `r format(as.Date(encSumm$firstEnc),"%B %Y")`
 
@@ -525,7 +480,7 @@ Month and year of last encounter: `r format(as.Date(encSumm$lastEnc),"%B %Y")`
 `r ifelse(encRows== encPrimKeyRows," ","The encounter table has duplicate rows, by enc_id")`
 
 
-##Table 5 . Count of distinct patients by age group and year of utilization, Dataset: ENCOUNTERS
+##Table 5 . Count of Distinct Patients by Age Group and Year of Utilization
 
 ```{r echo=F}
  
