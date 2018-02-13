@@ -642,8 +642,6 @@ knitr::kable(encEncType, col.names=c("Encounter Type",'Number of Encounters','Pe
 ```
 
 
-##Table 7 . Count of encounters by year, Dataset: ENCOUNTERS 
-
 ```{r include=F}
 encByYear <- encEncType_YM %>% group_by(aYear ) %>% summarize(Freq = sum(rowCnt))
 
@@ -659,15 +657,7 @@ encByYear$pctChng <- NA
 encByYear$aYear <- as.character(encByYear$aYear)
 
 ```
-```{r echo=FALSE}
-knitr::kable(encByYear, col.names=c("Year",'Frequency','Percent','% Change from previous'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
 
-```
-
-
-##Table 8. Unique patients with encounters by year, Dataset: ENCOUNTERS 
 
 ```{r include=F}
 uniqPatByYear <- sqlQuery(sqldb,
@@ -691,12 +681,7 @@ for(i in 2:nrow(uniqPatByYear)){
 uniqPatByYear$aYear <- as.character(uniqPatByYear$aYear)
 
 ```
-```{r echo=FALSE}
-knitr::kable(uniqPatByYear, col.names=c("Year",'Frequency','Percent','% Change from previous'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
 
-```
 
 ```{r add labels to encEncType_YM , include=F}
 
@@ -705,7 +690,7 @@ encTypeBymonYr <- within(encTypeBymonYr,{decode <- ifelse(!is.na(decode),decode,
 
 ```
 
-##Figure 3a. Ambulatory encounters by admission year and month , Dataset: ENCOUNTERS 
+##Figure 2a. Ambulatory encounters by admission year and month
 
 ```{r echo=F}
 ggplot(subset(encTypeBymonYr,encType == 'AV'), aes(adate_YM, rowCnt)) + geom_line() +
@@ -714,7 +699,7 @@ ggplot(subset(encTypeBymonYr,encType == 'AV'), aes(adate_YM, rowCnt)) + geom_lin
 
 ```
 
-##Figure 3b. Other encounter types by admission year and month , Dataset: ENCOUNTERS 
+##Figure 2b. Other encounter types by admission year and month
 
 ```{r echo=F}
 ggplot(subset(encTypeBymonYr,encType != 'AV'), aes(adate_YM, rowCnt, colour=decode)) + geom_line() +
@@ -736,63 +721,9 @@ encTypeByYr <- within(encTypeByYr,{decode <- ifelse(!is.na(decode),decode, ifels
 
 ```
 
-##Figure 4a. Ambulatory encounters by admission year , Dataset: ENCOUNTERS 
-
-```{r echo=F}
-ggplot(data = subset(encTypeByYr,encType = 'AV'), aes(x =aYear, y = Freq)) + 
-    geom_bar(stat = "identity") + labs(y='Count', x='Year')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-##Figure 4b. Other encounter types by admission year, Dataset: ENCOUNTERS  
-
-```{r echo=F}
-
-ggplot(data = subset(encTypeByYr,encType != 'AV'), aes(x =aYear, y = Freq, fill = decode)) + 
-    geom_bar(stat = "identity") + labs(y='Count', x='Year', fill='Encounter type')+theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
-```
-
-##Table 9. Unique patients with encounters in the last year of data , Dataset: ENCOUNTERS
-
-```{r include=F}
-
-
-uniqPatsEncTypeLastYear <- sqlQuery(sqldb,
-                 paste('SELECT encType, count(distinct person_id) as Freq',
-                       'FROM #encTmp',
-                       'where DATEDIFF(day, (select max(adate) from #encTmp), ADATE) between  -365 and 0',
-                       'GROUP BY  encType',
-                       sep=" "
-                       ),
-                 as.is=c(TRUE,TRUE,TRUE,TRUE,TRUE),
-                 max=maxQryRows
-                 )
-
-
-uniqPatsEncTypeLastYearTBL <-  merge(uniqPatsEncTypeLastYear,encLabels, by.x='encType', by.y='code', all.x=TRUE)
-
-#uniqPatsEncTypeLastYearTBL$encType <- as.character(uniqPatsEncTypeLastYearTBL$encType)
-#uniqPatsEncTypeLastYearTBL <- rbind(uniqPatsEncTypeLastYearTBL, c('gh',100,NA),c('   ',200,NA))
-
-uniqPatsEncTypeLastYearTBL <- within(uniqPatsEncTypeLastYearTBL,{
-  decode <- ifelse(!is.na(decode),decode, ifelse(is.na(encType), 'Missing', 'Invalid'))
-  pct <- round(100*Freq/sum(Freq),1)})
-
-
-```
-
-```{r echo=F}
-knitr::kable(uniqPatsEncTypeLastYearTBL[c('encType','decode','Freq','pct')], 
-             col.names=c('encType','Label','Frequency','Percent'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
-```
-
-* Patients will be counted only once per encounter type, but also in each encounter type observed.
-
-# Census Location
+# Examination of the CENSUS_LOCATION Table
 
 ```{r census location, echo=F}
 locSumm  <- sqlQuery(sqldb,
@@ -844,7 +775,7 @@ Month and year of last location: `r format(as.Date(locSumm$lastDT),"%B %Y")`
 
 `r multLastLocs$patsMultLoc` patients have more than one most recent location record
 
-##Table 10. Count of unique patients by State and county, based on most recent location, Dataset: CENSUS_LOCATION
+##Table 11. Count of unique patients by State and County, based on most recent location
 
 ```{r echo=F}
 
@@ -859,7 +790,7 @@ knitr::kable(lastLocation[c('stateCnty','stCntyNm','Freq','pct')],
 
 ```
 
-#Diagnoses
+# Examination of the DIAGNOSES Table
 
 ```{r echo=F}
 
@@ -887,7 +818,12 @@ Month and year of last diagnosis: `r format( as.Date(diagSumm$lastDT),"%B %Y")`
 
 `r ifelse( diagSumm$rowCnt==diagSumm$primKeyCnt," ","The table has duplicate rows, by enc_id dx adate diagprovider")`
 
-##Table 11. Count of diagnoses by year , Dataset: DIAGNOSIS 
+The following tables explore the contents of the PROCEDURES table with a focus on trends over time and most common types of procedures.
+
+##Table 12. Annual Trends in the Total Number of Recorded Diagnoses, the Mean Number of Encounters, the Mean Number of Patients and the Percent Change from the Previous Year, by Calendar Year
+
+This table examines the volume of diagnoses over time and the number of patients with encounters represented in the DIAGNOSES table. Average number of diagnoses per encounter, and per patient, are calculated to compare diagnosis volume trends over time.
+
 
 ```{r echo=F}
 diagsYear <- sqlQuery(sqldb,
