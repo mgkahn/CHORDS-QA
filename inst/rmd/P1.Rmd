@@ -880,29 +880,6 @@ kable(tab12_add, col.names = c("Year", "Total Number of Recorded Diagnoses", "Pe
 
 ```
 
-
-
-##Table 12. Count of unique patients with at least 1 diagnoses by year , Dataset: DIAGNOSIS 
-
-```{r echo=F}
-patDiagYr <- sqlQuery(sqldb,
-                      paste("SELECT year(adate) as year, count(distinct person_id) as Freq",
-                            "FROM ",diagnoses,
-                            "GROUP BY YEAR(adate)",
-                            sep=" "),
-                 max=maxQryRows
-                 )
-patDiagYr <- within(patDiagYr,{ pct <- round(100*Freq/sum(Freq),1)})
-
-patDiagYr$year <- as.character(patDiagYr$year)
-
-knitr::kable(patDiagYr[c('year','Freq','pct')], 
-             col.names=c('Year','Frequency','Percent'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
-
-```
-
 ##Table 13. Average diagnoses per encounter, by year , Dataset: ENCOUNTERS 
 
 ```{r echo=F}
