@@ -824,26 +824,63 @@ The following tables explore the contents of the PROCEDURES table with a focus o
 
 This table examines the volume of diagnoses over time and the number of patients with encounters represented in the DIAGNOSES table. Average number of diagnoses per encounter, and per patient, are calculated to compare diagnosis volume trends over time.
 
+```{r tab12_res}
 
-```{r echo=F}
-diagsYear <- sqlQuery(sqldb,
-                      paste("SELECT year(adate) as year, count(*) as Freq",
-                            "FROM ",diagnoses,
-                            "GROUP BY YEAR(adate)",
-                            sep=" "),
-                 max=maxQryRows
-                 )
+tab12 <- odbc::dbGetQuery(con, 
+  "select year(adate) as year,
+    count(*) as nrows, 
+    count(distinct enc_id) as nencts,
+	  count(distinct person_id) as npats
+	  from diagnoses
+	    group by year(adate)
+      order by year(adate)")
 
-diagsYear <- within(diagsYear,{ pct <- round(100*Freq/sum(Freq),1)})
+tab12_avg_encts <- odbc::dbGetQuery(con, 
+  "select year(adate) as year,
+    count(*) as nrows
+	  from diagnoses
+	    group by year(adate), enc_id
+      order by year(adate)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max)) %>% 
+  mutate(
+    enct_val = paste0(median, "(", min, ", ", max, ")")
+  ) %>% 
+  select(enct_val)
 
-diagsYear$year <- as.character(diagsYear$year)
+tab12_avg_pats <- odbc::dbGetQuery(con, 
+  "select year(adate) as year,
+    count(*) as nrows
+	  from diagnoses
+	    group by year(adate), person_id
+      order by year(adate)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max))%>% 
+  mutate(
+    pats_val = paste0(median, "(", min, ", ", max, ")")
+  ) %>% 
+  select(pats_val)
 
-knitr::kable(diagsYear[c('year','Freq','pct')], 
-             col.names=c('Year','Frequency','Percent'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
+tab12_add <- tab12 %>% 
+  bind_cols(., tab12_avg_encts, tab12_avg_pats) %>% 
+  mutate(
+    ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
+  ) %>% 
+  select(year, nrows, ptc_rec, nencts, npats, enct_val, pats_val)
+
+tab12_add$year <- as.character(tab12_add$year)
 
 ```
+
+```{r tab12_dis, results="asis"}
+
+kable(tab12_add, col.names = c("Year", "Total Number of Recorded Diagnoses", "Percent Change from Previous Year", "Total Number of Encounters with 1+ Diagnosis", "Total Number of Unique Patients with 1+ Diagnosis", "Median Number of Diagnoses per Encounter (Min, Max)", "Median Number of Diagnoses per Patient (Min, Max)"), format.args = list(big.mark = ","))
+
+```
+
+
 
 ##Table 12. Count of unique patients with at least 1 diagnoses by year , Dataset: DIAGNOSIS 
 
