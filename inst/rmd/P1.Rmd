@@ -934,27 +934,6 @@ kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV"
 ```
  
 
-```{r echo=F}
-
-avgDxAll <- sqlQuery(sqldb,
-                      paste("SELECT YEAR(adate) as year, count(*) as rowCnt, count(distinct enc_id) as encCnt, count(distinct person_id) as ptCnt",
-                            "FROM " ,diagnoses,
-                            "GROUP BY YEAR(adate)",
-                            sep=" "),
-                 max=maxQryRows
-                 )
-avgDxAll <- within(avgDxAll,{
-  NDxEnc <- round(rowCnt/encCnt,1)
-  NDxPat <- round(rowCnt/ptCnt,1)
-})
-knitr::kable(avgDxAll[c('year','rowCnt','encCnt','ptCnt','NDxEnc','NDxPat')], 
-             col.names=c('Year','Diagnoses','Encounters','Patients','Dx per encounter','Dx per patient'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
-
-
-```
-
 ```{r monthly counts by enc type, echo=F}
 
 dxByMonEncTp <- sqlQuery(sqldb,
