@@ -178,7 +178,7 @@ tab1_all <- bind_rows(tab1_dem, tab1_enc, tab1_loc, tab1_dx, tab1_vs) %>%
 
 ```
 
-```{r tab1_disp, results="asis", echo = F}
+```{r tab1_disp, echo = F}
 
 kable(tab1_all, col.names = c("Table", "Records", "Patients", "Encounters", "Date Field", "Min Date", "Max Date"), format.args = list(big.mark = ",")) 
   
@@ -295,7 +295,7 @@ tab2_all <- left_join(tab2_null, tab2_uk, by = c("table", "var"))
 
 ```
 
-```{r tab2_disp, results="asis", echo=FALSE}
+```{r tab2_disp, echo=FALSE}
 
 kable(tab2_all, col.names = c("Table", "Variable", "Null Records", "Percent of Records Null", "Unknown Records", "Percent of Records Unknown"), digits = 2, format.args = list(big.mark = ","))
 ```
@@ -594,7 +594,7 @@ tab9_all$year <- as.character(tab9_all$year)
 
 ```
 
-```{r tab9_dis, results="asis"}
+```{r tab9_dis, echo = FALSE}
 
 kable(tab9_all, col.names = c("Year", "Total Number of Recorded Encountres", "Percent Change from Previous Year", "Total Number of Patients with at Least One Encounter", "Median Number of Encounters per Patient (Min, Max)"), format.args = list(big.mark = ","))
 
@@ -823,7 +823,7 @@ The following tables explore the contents of the PROCEDURES table with a focus o
 
 This table examines the volume of diagnoses over time and the number of patients with encounters represented in the DIAGNOSES table. Average number of diagnoses per encounter, and per patient, are calculated to compare diagnosis volume trends over time.
 
-```{r tab12_res}
+```{r tab12_res, echo = FALSE}
 
 tab12 <- odbc::dbGetQuery(con, 
   "select year(adate) as year,
@@ -873,7 +873,7 @@ tab12_add$year <- as.character(tab12_add$year)
 
 ```
 
-```{r tab12_dis, results="asis"}
+```{r tab12_dis, echo = FALSE}
 
 kable(tab12_add, col.names = c("Year", "Total Number of Recorded Diagnoses", "Percent Change from Previous Year", "Total Number of Encounters with 1+ Diagnosis", "Total Number of Unique Patients with 1+ Diagnosis", "Median Number of Diagnoses per Encounter (Min, Max)", "Median Number of Diagnoses per Patient (Min, Max)"), format.args = list(big.mark = ","))
 
@@ -883,7 +883,7 @@ kable(tab12_add, col.names = c("Year", "Total Number of Recorded Diagnoses", "Pe
 
 These tables includes information on the ten most common diagnoses recorded in your DIAGNOSES table. Data on diagnosis codes, types, counts and patients are presented for all encounters and for ambulatory only encounters (ENCTYPE=AV).
 
-```{r tab13_res}
+```{r tab13_res, echo = FALSE}
 
 tab13_dxall <- odbc::dbGetQuery(con, 
   "select dx,
@@ -921,13 +921,13 @@ tab13_all <- bind_cols(tab13_dxall, tab13_dxav)
 ```
 
 
-```{r tab13a_disp, results="asis"}
+```{r tab13a_disp, echo = FALSE}
 
 kable(tab13_dxall, col.names = c("Diagnosis Code", "Code Type", "Diagnosis Description", "Number of Recorded Diagnoses", "Number of Patients"), format.args = list(big.mark = ","))
 
 ```
 
-```{r tab13b_disp, results="asis"}
+```{r tab13b_disp, echo = FALSE}
 
 kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV", "Diagnosis Description", "Number of Recorded Diagnosis for AV", "Number of Patients for AV"), format.args = list(big.mark = ","))
 
@@ -1051,7 +1051,7 @@ knitr::kable(vlst[c('variable','nobs','npats','minimum','q1','median','q3', 'max
 
 This table examines the volume of vital signs over time and the number of patients with encounters represented in the VITAL_SIGNS table. Average number of vital signs per encounter, and per patient, are calculated to compare vital signs volume trends over time; and also to indicate whether or not vital signs are captured in one row or multiple rows for each encounter.
 
-```{r tab8_res}
+```{r tab8_res, echo = FALSE}
 
 tab15 <- odbc::dbGetQuery(con, 
   "select year(measure_date) as year,
@@ -1101,36 +1101,12 @@ tab15_add$year <- as.character(tab15_add$year)
 
 ```
 
-```{r tab15_dis, results="asis"}
+```{r tab15_dis, echo = FALSE}
 
 kable(tab8_add, col.names = c("Year", "Total Number of Recorded Vitals", "Percent Change from Previous Year", "Total Number of Encounters with Vital_Signs", "Total Number of Patients with Vitals", "Median Number of Vitals per Encounter (Min, Max)", "Median Number of Vitals per Patient (Min, Max)"), format.args = list(big.mark = ","))
 
 ```
 
-```{r echo=F}
-
-vitalsByYr <- sqlQuery(sqldb,
-                 paste('SELECT year(measure_date) as year, count(*) as Freq',
-                       'FROM  ',vital_signs,
-                       'GROUP BY year(measure_date)',
-                       sep=" "
-                       ),
-                 max=maxQryRows
-                 )
-
-vitalsByYr <- within(vitalsByYr,{
-  pct <- round(100*Freq/sum(Freq), 1)
-})
-
-vitalsByYr$year <- as.character(vitalsByYr$year)
-
-knitr::kable(vitalsByYr[c('year','Freq','pct')], 
-             col.names=c('Year','Frequency','Percent'), 
-             row.names=FALSE, 
-             format.args = list(big.mark = ","))
-
-
-```
 
 ##Figure 6. Count of vital signs by year and month, Dataset: VITAL_SIGNS
 
