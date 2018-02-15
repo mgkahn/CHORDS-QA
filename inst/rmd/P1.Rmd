@@ -444,12 +444,11 @@ ethn2 <- data.frame(Value = c("Y", "N", "U"),
                     Frequency = c(ethn$Yes, ethn$No, ethn$Unknown), 
                     Percent = c((ethn$Yes/tab1_dem$npats * 100), (ethn$No/tab1_dem$npats * 100), (ethn$Unknown/tab1_dem$npats * 100)))
 
-knitr::kable(ethn2,
+knitr::kable(ethn2, digits = 2,
             format.args = list(big.mark = ","))
 
 ```
 
-``
 
 ```{r encounter table, include=FALSE}
 
