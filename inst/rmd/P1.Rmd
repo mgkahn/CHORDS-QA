@@ -16,7 +16,9 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                message = FALSE,
+                warning = FALSE)
 startTime <- Sys.time()
 
 # Names of database tables
@@ -936,7 +938,7 @@ kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV"
 ## Table 14: Summary of the Ten Most Common Diagnoses by Diagnosis Code Type, Total Number of Recorded Diagnoses and Total Number of Recorded Patients
 This table includes information on the ten most common diagnoses recorded in your DIAGNOSES table. Data on diagnosis codes, counts and patients are presented for ICD-9 and ICD-10.
 
-```{r tab14_res}
+```{r tab14_res, echo=TRUE}
 
 tab14_09 <- odbc::dbGetQuery(con, 
   "select top 10 dx,
@@ -958,21 +960,21 @@ tab14_10 <- odbc::dbGetQuery(con,
 
 ```
 
-```{r tab14_disp, results="asis"}
+```{r tab14_disp, echo=FALSE}
 #if and else statements are used to determine if the respecitvie table has any
 #rows. If not, then an error message is written indicating so.
 
 if (nrow(tab14_09) != 0){
   kable(tab14_09, col.names = c("Diagnosis", "Records", "Patients"), caption = "Diagnosis Code Type = 09", format.args = list(big.mark = ","))
 } else {
-   cat(noquote("Table had zero rows.  PX_CODETYPE = '09' likely isn't a category for this variable.\n"))
+   cat(noquote("Table had zero rows.  DX_CODETYPE = '09' likely isn't a category for this variable.\n"))
 } 
 
 
 if (nrow(tab14_10) != 0){
   kable(tab14_10, col.names = c("ProDiagnosiscedure", "Records", "Patients"), caption = "Diagnosis Code Type = 10", format.args = list(big.mark = ","))
 } else {
-   cat(noquote("Table had zero rows.  PX_CODETYPE = '10' likely isn't a category for this variable.\n"))
+   cat(noquote("Table had zero rows.  DX_CODETYPE = '10' likely isn't a category for this variable.\n"))
 } 
 
 ```
@@ -1134,7 +1136,7 @@ tab16_avg_pats <- odbc::dbGetQuery(con,
   ) %>% 
   select(pats_val)
 
-tab16_add <- tab15 %>% 
+tab16_add <- tab16 %>% 
   bind_cols(., tab16_avg_encts, tab16_avg_pats) %>% 
   mutate(
     ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
@@ -1181,7 +1183,7 @@ ggplot(vitalsByMonYrTx, aes(monYr, Count, colour=Vital_record)) + geom_line() +
 ```
 
 ####Total program run time:
-```{r Calculate program run time}
+```{r Calculate program run time, echo=FALSE}
 # close odbc
  close(sqldb)
 
