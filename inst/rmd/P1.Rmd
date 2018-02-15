@@ -972,7 +972,7 @@ ggplot(subset(dxByMonEncTp,enctype != 'AV'), aes(monYr, Freq, colour=decode)) + 
 ```
 
 
-#VITAL_SIGNS
+# Examination of the VITAL_SIGNS Table
 
 ```{r echo=F}
 
@@ -1000,7 +1000,8 @@ Month and year of last record: `r format(as.Date(vitalSumm$lastDT),"%B %Y")`
 `r ifelse(vitalSumm$rowCnt==vitalSumm$primKeyCnt," ","The table has duplicate rows, by person_id, measure_date, measure_time")`
 
 
-##Table 16. Vital Sign Summary, Dataset: VITAL_SIGNS
+##Table 14. Vital Signs Summary
+
 ```{r echo=F}
 
 # be sure to include space breaks in any re-design
@@ -1040,13 +1041,71 @@ vlst <- within(vlst,{
   maximum <- round(as.numeric(maximum),1)
 })
 knitr::kable(vlst[c('variable','nobs','npats','minimum','q1','median','q3', 'maximum')], 
-             col.names=c('Vital record','Non-null obs.','Unique patients with non-null obs','Minimum','Q1','Median','Q3', 'Maximum'), 
+             col.names=c('Vital record','Non-null Obs.','Unique patients with Non-null Obs','Minimum','Q1','Median','Q3', 'Maximum'), 
              row.names=FALSE, 
              format.args = list(big.mark = ","))
 
 ```
 
-##Table 17. Row counts of vital records by year , Dataset: VITAL_SIGNS
+##T Table 15: Annual Trends in the Total Number of Recorded Vital Sign Records, the Mean Number of Encounters, the Mean Number of Patients and the Percent Change from the Previous Year, by Calendar Year
+
+This table examines the volume of vital signs over time and the number of patients with encounters represented in the VITAL_SIGNS table. Average number of vital signs per encounter, and per patient, are calculated to compare vital signs volume trends over time; and also to indicate whether or not vital signs are captured in one row or multiple rows for each encounter.
+
+```{r tab8_res}
+
+tab15 <- odbc::dbGetQuery(con, 
+  "select year(measure_date) as year,
+    count(*) as nrows, 
+    count(distinct enc_id) as nencts,
+	  count(distinct person_id) as npats
+	  from vital_signs
+	    group by year(measure_date)
+      order by year(measure_date)")
+
+tab15_avg_encts <- odbc::dbGetQuery(con, 
+  "select year(measure_date) as year,
+    count(*) as nrows
+	  from vital_signs
+	    group by year(measure_date), enc_id
+      order by year(measure_date)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max)) %>% 
+  mutate(
+    enct_val = paste0(median, "(", min, ", ", max, ")")
+  ) %>% 
+  select(enct_val)
+
+tab15_avg_pats <- odbc::dbGetQuery(con, 
+  "select year(measure_date) as year,
+    count(*) as nrows
+	  from vital_signs
+	    group by year(measure_date), person_id
+      order by year(measure_date)") %>% 
+  arrange(year) %>% 
+  group_by(year) %>% 
+  summarise_all(funs(mean, median, min, max))%>% 
+  mutate(
+    pats_val = paste0(median, "(", min, ", ", max, ")")
+  ) %>% 
+  select(pats_val)
+
+tab15_add <- tab15 %>% 
+  bind_cols(., tab15_avg_encts, tab15_avg_pats) %>% 
+  mutate(
+    ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
+  ) %>% 
+  select(year, nrows, ptc_rec, nencts, npats, enct_val, pats_val)
+
+tab15_add$year <- as.character(tab15_add$year)
+
+```
+
+```{r tab15_dis, results="asis"}
+
+kable(tab8_add, col.names = c("Year", "Total Number of Recorded Vitals", "Percent Change from Previous Year", "Total Number of Encounters with Vital_Signs", "Total Number of Patients with Vitals", "Median Number of Vitals per Encounter (Min, Max)", "Median Number of Vitals per Patient (Min, Max)"), format.args = list(big.mark = ","))
+
+```
 
 ```{r echo=F}
 
