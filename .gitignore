@@ -12,3 +12,5 @@ inst/doc\.R
 inst/rmd/P1_files/figure-docx/
 
 *.docx
+
+inst/rmd/P2_files/figure-docx/
