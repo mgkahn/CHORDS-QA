@@ -439,8 +439,8 @@ ethn <- odbc::dbGetQuery(con,
 
 ethn2 <- data.frame(Value = c("Y", "N", "U"),
                     Label = names(ethn), 
-                    Frequency = c(ethn$yes, ethn$no, ethn$unknown), 
-                    Percent = c((ethn$yes/tab1_dem$npats * 100), (ethn$no/tab1_dem$npats * 100), (ethn$unknown/tab1_dem$npats * 100)))
+                    Frequency = c(ethn$Yes, ethn$No, ethn$Unknown), 
+                    Percent = c((ethn$Yes/tab1_dem$npats * 100), (ethn$No/tab1_dem$npats * 100), (ethn$Unknown/tab1_dem$npats * 100)))
 
 knitr::kable(ethn2,
             format.args = list(big.mark = ","))
