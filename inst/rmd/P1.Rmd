@@ -110,11 +110,11 @@ ccsMDxI10 <- chordsTables::ccsMDxI10
 
 ccsSDxI9 <- chordsTables::ccsSDxI9
 
-icdLU <- rbind(ccsMDxI10[c('dxCdTp','dxDesc')],ccsSDxI9[c('dxCdTp','dxDesc')])
+icdLU <- rbind(ccsMDxI10[c('dxCdTp','dxDesc')],ccsSDxI9[c('dxCdTp','dxDesc')]) 
 
 # ISO language lookup
-isoLang <- chordsTables::isoLang
-
+isoLang <- chordsTables::isoLang 
+ 
 # VDW value sets
 valSets <- chordsTables::valSets
 
@@ -722,7 +722,6 @@ encTypeByYr <- within(encTypeByYr,{decode <- ifelse(!is.na(decode),decode, ifels
 ```
 
 
-
 # Examination of the CENSUS_LOCATION Table
 
 ```{r census location, echo=F}
@@ -880,7 +879,60 @@ kable(tab12_add, col.names = c("Year", "Total Number of Recorded Diagnoses", "Pe
 
 ```
 
-##Table 13. Average diagnoses per encounter, by year , Dataset: ENCOUNTERS 
+##Table 13. Summary  of the Ten Most Common Diagnosis Codes, by All or Ambulatory Encounter Type
+
+These tables includes information on the ten most common diagnoses recorded in your DIAGNOSES table. Data on diagnosis codes, types, counts and patients are presented for all encounters and for ambulatory only encounters (ENCTYPE=AV).
+
+```{r tab13_res}
+
+tab13_dxall <- odbc::dbGetQuery(con, 
+  "select dx,
+    dx_codetype,
+    count(*) as nrows_all,
+    count(distinct person_id) as npats
+	  from diagnoses
+	    group by dx, dx_codetype") %>% 
+  arrange(desc(nrows_all)) %>% 
+  head(., 10) %>% 
+  mutate(
+    dxCdTp  = paste(dx_codetype,'-',gsub('.','',dx, fixed=T), sep='')
+  ) %>% 
+  left_join(., icdLU, by = "dxCdTp") %>% 
+  select(dx, dx_codetype, dxDesc, nrows_all, npats)
+
+tab13_dxav <- odbc::dbGetQuery(con, 
+  "select dx as dx_av,
+    dx_codetype as dx_codetype_av,
+    count(*) as nrows_av,
+    count(distinct person_id) as npats_av
+	  from diagnoses
+      where ENCTYPE = 'AV'
+	    group by dx, dx_codetype") %>% 
+  arrange(desc(nrows_av)) %>% 
+  head(., 10) %>% 
+  mutate(
+    dxCdTp  = paste(dx_codetype_av,'-',gsub('.','',dx_av, fixed=T), sep='')
+  ) %>% 
+  left_join(., icdLU, by = "dxCdTp") %>% 
+  select(dx_av, dx_codetype_av, dxDesc, nrows_av, npats_av)
+
+tab13_all <- bind_cols(tab13_dxall, tab13_dxav)
+
+```
+
+
+```{r tab13a_disp, results="asis"}
+
+kable(tab13_dxall, col.names = c("Diagnosis Code", "Code Type", "Diagnosis Description", "Number of Recorded Diagnoses", "Number of Patients"), format.args = list(big.mark = ","))
+
+```
+
+```{r tab13b_disp, results="asis"}
+
+kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV", "Diagnosis Description", "Number of Recorded Diagnosis for AV", "Number of Patients for AV"), format.args = list(big.mark = ","))
+
+```
+ 
 
 ```{r echo=F}
 
@@ -959,7 +1011,7 @@ top10Dx <- within(top10Dx, {
 
 top10Dx <- top10Dx[1:10,]
 top10Dx <- trimChrVars(top10Dx)
-top10Dx <- merge(top10Dx, icdLU, by.x = 'dxCdTp', by.y = 'dxCdTp', all.x=T)
+top10Dx <- merge(top10Dx, icdLU, by.x = 'dx', by.y = 'dx', all.x=T)
 top10Dx <- within(top10Dx,{
                   dxDesc <- ifelse(!is.na(dxDesc),dxDesc, ifelse(is.na(dx), 'Missing', 'Invalid'))
                   
