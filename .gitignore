@@ -10,3 +10,5 @@ inst/doc\.html
 inst/doc\.R
 
 inst/rmd/P1_files/figure-docx/
+
+*.docx
