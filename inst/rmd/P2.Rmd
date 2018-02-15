@@ -282,7 +282,7 @@ kable(tab3_ord, col.names = c("Year", "Number of Recorded Lab Tests", "Percent C
 ```
 
 
-##Table 4: CHORDS Priority Lab Tests – Number/Percentage of Tests, Number/Percentage of Patients Tested, Mean Result Values and Result Ranges, by Select TEST_TYPE Values 
+##Table 4: CHORDS Priority Lab Tests - Number/Percentage of Tests, Number/Percentage of Patients Tested, Mean Result Values and Result Ranges, by Select TEST_TYPE Values 
 
 This table illustrates the number (and percent) of priority lab test records including the percent of all lab test records , as well as the number (and percent)  of unique patients tested for select TEST_TYPE values. 
 
@@ -353,13 +353,14 @@ lapply(2:ncol(fig1_wide), function(x)
         panel.background = element_blank(),  
         axis.line = element_line(colour = "black"),
         axis.title = element_text(size = 16, face = "bold"),
-        axis.text = element_text(size = 14, face = "bold"))
+        axis.text = element_text(size = 14, face = "bold"),
+        plot.title = element_text(hjust = 0.5, size = 20))
     ) 
 
 
 ```
 
-##Table 5: Summary of the Ten Most Common Lab Tests – Number/Percentage of Tests and Number/Percentage of Patients Tested, by Select BATTERY_CD Values
+##Table 5: Summary of the Ten Most Common Lab Tests - Number/Percentage of Tests and Number/Percentage of Patients Tested, by Select BATTERY_CD Values
 
 This table illustrates the number (and percent) of the data partner's ten most common lab tests and the number (and percent) of unique patients tested with the ten most common lab tests, by the BATTERY_CD field (which captures site-specific lab test names), the percentage of records this represents, and the number and percent of patients in the LAB_RESULTS table who have these results. 
 
@@ -629,7 +630,7 @@ kable(tab9_all, col.names = c("Encounter Type", "Number of Encounters", "Percent
 
 ```
 
-##Table 10: Summary of the Ten Most Common Procedures – Procedure Code, Procedure Type, Total Number of Recorded Procedures and Total Number of Recorded Patients, by All or Ambulatory Encounter Type 
+##Table 10: Summary of the Ten Most Common Procedures - Procedure Code, Procedure Type, Total Number of Recorded Procedures and Total Number of Recorded Patients, by All or Ambulatory Encounter Type 
 
 This table includes information on the ten most common procedures recorded in your PROCEDURE table.  Data on procedure codes, types, counts and patients are presented for all encounters and for ambulatory only encounters (ENCTYPE='AV'). 
 
@@ -870,7 +871,7 @@ kable(tab15, col.names = c("Year", "Records", "Yes/Current", "Infrequent", "Quit
 
 ```
 
-##Table 16: Annual Trends in Self-Reported Alcohol Use – the Distribution of Responses by Alcohol Behavior Categories, by Calendar Year	
+##Table 16: Annual Trends in Self-Reported Alcohol Use - the Distribution of Responses by Alcohol Behavior Categories, by Calendar Year	
 
 This table includes information on the distribution of SOCIAL_HISTORY records by ALCOHOL_USER value.
 
@@ -898,7 +899,7 @@ kable(tab16, col.names = c("Year", "Records", "Yes/Current", "Quit/Former",  "Ne
 
 ```
 
-##Table 17: Annual Trends in Self-Reported Illicit Drug Use – the Distribution of Responses by Illicit Drug Use Behavior Categories, by Calendar Year	
+##Table 17: Annual Trends in Self-Reported Illicit Drug Use - the Distribution of Responses by Illicit Drug Use Behavior Categories, by Calendar Year	
 
 This table includes information on the distribution of SOCIAL_HISTORY records by ILL_DRUG_USER value.
 
@@ -935,4 +936,4 @@ runtime <- endTime - startTime
 ```
 
 
-Query run time = `r runtime`
+Query run time = `r runtime` minutes
