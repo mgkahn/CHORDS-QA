@@ -1,8 +1,8 @@
 #' Run code to generate priority tables.
 #'
 #' @param priority A character vector.  This is the priority table for which you want to generate the report. Options are "P1", "P2", or "P3".
-#' @param dbserver A string vector.  The name of the database server name. This is selected via an html window and contains the following options \code{cc-s-d05.ucdenver.pvt}, \code{cc-s-d05.ucdenver.pvt}, \code{cc-s-d05.ucdenver.pvt}, and \code{cc-s-d05.ucdenver.pvt}
-#' @param dbname A string vector.  The name of the database.  This is selected via an html window and contains the following options \code{VDW_3_1_DH}, \code{VDW_3_1_DH}, \code{VDW_3_1_DH}, and \code{VDW_3_1_DH}
+#' @param dbserver A string vector.  The name of the database server name. This is selected via an html window and contains the following options \code{cc-s-d05.ucdenver.pvt}, \code{vwphbisql06}, and \code{ihrsql1.ihr.or.kp.org}
+#' @param dbname A string vector.  The name of the database.  This is selected via an html window and contains the following options \code{VDW_3_1_DH}, \code{VDW.dbo}, and \code{VDW}
 #' @return Creates a word document generated from an .Rmd file. The file is located in \code{C:/Users/<username>/Documents} folder (the My Documents folder for the user who generated the report) and the name of the file is the value of the priority argument (e.g., P1.docx)
 #' @examples
 #' \dontrun{
