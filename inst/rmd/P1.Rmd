@@ -933,6 +933,50 @@ kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV"
 
 ```
  
+## Table 14: Summary of the Ten Most Common Diagnoses by Diagnosis Code Type, Total Number of Recorded Diagnoses and Total Number of Recorded Patients
+This table includes information on the ten most common diagnoses recorded in your DIAGNOSES table. Data on diagnosis codes, counts and patients are presented for ICD-9 and ICD-10.
+
+```{r tab14_res}
+
+tab14_09 <- odbc::dbGetQuery(con, 
+  "select top 10 dx,
+    count(*) as nrows_all,
+    count(distinct person_id) as npats
+	  from diagnoses
+	    where dx_codetype = '09'
+      group by dx
+      order by nrows_all DESC") 
+
+tab14_10 <- odbc::dbGetQuery(con, 
+  "select top 10 dx,
+    count(*) as nrows_all,
+    count(distinct person_id) as npats
+	  from diagnoses
+	    where dx_codetype = '10'
+      group by dx
+      order by nrows_all DESC") 
+
+```
+
+```{r tab14_disp, results="asis"}
+#if and else statements are used to determine if the respecitvie table has any
+#rows. If not, then an error message is written indicating so.
+
+if (nrow(tab14_09) != 0){
+  kable(tab14_09, col.names = c("Diagnosis", "Records", "Patients"), caption = "Diagnosis Code Type = 09", format.args = list(big.mark = ","))
+} else {
+   cat(noquote("Table had zero rows.  PX_CODETYPE = '09' likely isn't a category for this variable.\n"))
+} 
+
+
+if (nrow(tab14_10) != 0){
+  kable(tab14_10, col.names = c("ProDiagnosiscedure", "Records", "Patients"), caption = "Diagnosis Code Type = 10", format.args = list(big.mark = ","))
+} else {
+   cat(noquote("Table had zero rows.  PX_CODETYPE = '10' likely isn't a category for this variable.\n"))
+} 
+
+```
+
 
 ```{r monthly counts by enc type, echo=F}
 
@@ -1000,7 +1044,7 @@ Month and year of last record: `r format(as.Date(vitalSumm$lastDT),"%B %Y")`
 `r ifelse(vitalSumm$rowCnt==vitalSumm$primKeyCnt," ","The table has duplicate rows, by person_id, measure_date, measure_time")`
 
 
-##Table 14. Vital Signs Summary
+##Table 15. Vital Signs Summary
 
 ```{r echo=F}
 
@@ -1047,13 +1091,13 @@ knitr::kable(vlst[c('variable','nobs','npats','minimum','q1','median','q3', 'max
 
 ```
 
-##T Table 15: Annual Trends in the Total Number of Recorded Vital Sign Records, the Mean Number of Encounters, the Mean Number of Patients and the Percent Change from the Previous Year, by Calendar Year
+##T Table 16: Annual Trends in the Total Number of Recorded Vital Sign Records, the Mean Number of Encounters, the Mean Number of Patients and the Percent Change from the Previous Year, by Calendar Year
 
 This table examines the volume of vital signs over time and the number of patients with encounters represented in the VITAL_SIGNS table. Average number of vital signs per encounter, and per patient, are calculated to compare vital signs volume trends over time; and also to indicate whether or not vital signs are captured in one row or multiple rows for each encounter.
 
-```{r tab8_res, echo = FALSE}
+```{r tab16_res, echo = FALSE}
 
-tab15 <- odbc::dbGetQuery(con, 
+tab16 <- odbc::dbGetQuery(con, 
   "select year(measure_date) as year,
     count(*) as nrows, 
     count(distinct enc_id) as nencts,
@@ -1062,7 +1106,7 @@ tab15 <- odbc::dbGetQuery(con,
 	    group by year(measure_date)
       order by year(measure_date)")
 
-tab15_avg_encts <- odbc::dbGetQuery(con, 
+tab16_avg_encts <- odbc::dbGetQuery(con, 
   "select year(measure_date) as year,
     count(*) as nrows
 	  from vital_signs
@@ -1076,7 +1120,7 @@ tab15_avg_encts <- odbc::dbGetQuery(con,
   ) %>% 
   select(enct_val)
 
-tab15_avg_pats <- odbc::dbGetQuery(con, 
+tab16_avg_pats <- odbc::dbGetQuery(con, 
   "select year(measure_date) as year,
     count(*) as nrows
 	  from vital_signs
@@ -1090,20 +1134,20 @@ tab15_avg_pats <- odbc::dbGetQuery(con,
   ) %>% 
   select(pats_val)
 
-tab15_add <- tab15 %>% 
-  bind_cols(., tab15_avg_encts, tab15_avg_pats) %>% 
+tab16_add <- tab15 %>% 
+  bind_cols(., tab16_avg_encts, tab16_avg_pats) %>% 
   mutate(
     ptc_rec = if_else(is.na(nrows / dplyr::lag(nrows)), "--", paste0(round(nrows / dplyr::lag(nrows) * 100, 0), "%"))
   ) %>% 
   select(year, nrows, ptc_rec, nencts, npats, enct_val, pats_val)
 
-tab15_add$year <- as.character(tab15_add$year)
+tab16_add$year <- as.character(tab16_add$year)
 
 ```
 
 ```{r tab15_dis, echo = FALSE}
 
-kable(tab8_add, col.names = c("Year", "Total Number of Recorded Vitals", "Percent Change from Previous Year", "Total Number of Encounters with Vital_Signs", "Total Number of Patients with Vitals", "Median Number of Vitals per Encounter (Min, Max)", "Median Number of Vitals per Patient (Min, Max)"), format.args = list(big.mark = ","))
+kable(tab16_add, col.names = c("Year", "Total Number of Recorded Vitals", "Percent Change from Previous Year", "Total Number of Encounters with Vital_Signs", "Total Number of Patients with Vitals", "Median Number of Vitals per Encounter (Min, Max)", "Median Number of Vitals per Patient (Min, Max)"), format.args = list(big.mark = ","))
 
 ```
 
@@ -1137,7 +1181,7 @@ ggplot(vitalsByMonYrTx, aes(monYr, Count, colour=Vital_record)) + geom_line() +
 ```
 
 ####Total program run time:
-```{r Calculate program run time, echo=F}
+```{r Calculate program run time}
 # close odbc
  close(sqldb)
 
