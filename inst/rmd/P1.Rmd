@@ -937,7 +937,7 @@ kable(tab13_dxav, col.names = c("Diagnosis Code for AV", "Diagnosis Type for AV"
 ## Table 14: Summary of the Ten Most Common Diagnoses by Diagnosis Code Type, Total Number of Recorded Diagnoses and Total Number of Recorded Patients
 This table includes information on the ten most common diagnoses recorded in your DIAGNOSES table. Data on diagnosis codes, counts and patients are presented for ICD-9 and ICD-10.
 
-```{r tab14_res, echo=TRUE}
+```{r tab14_res, echo=FALSE}
 
 tab14_09 <- odbc::dbGetQuery(con, 
   "select top 10 dx,
