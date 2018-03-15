@@ -7,12 +7,12 @@ params:
         label: "Database Server Name:"
         value: cc-s-d05.ucdenver.pvt
         input: select
-        choices: [cc-s-d05.ucdenver.pvt, vwphbisql06, ihrsql1.ihr.or.kp.org, PRDVDWSQL01]
+        choices: [cc-s-d05.ucdenver.pvt, vwphbisql06, ihrsql1.ihr.or.kp.org, PRDVDWSQL01, SQL01]
     DBName:
         label: "Database Name:"
         value: VDW_3_1_DH
         input: select
-        choices: [VDW_3_1_DH, VDW.dbo, VDW]
+        choices: [VDW_3_1_DH, VDW.dbo, VDW, CHORDS_VDW_CC_3.1, CHORDS_VDW_CT_3.1, CHORDS_VDW_HP_3.1, CHORDS_VDW_MC_3.1, CHORDS_VDW_SC_3.1, CHORDS_VDW_SS_3.1]
 ---
 
 ```{r setup, include=FALSE}
@@ -881,16 +881,20 @@ This table includes information on the distribution of SOCIAL_HISTORY records by
 tab16 <- odbc::dbGetQuery(con, 
   "select year(contact_date) as year,
    count(*) as num_rec,
-   SUM(CASE WHEN TOBACCO_USER = 'Y' THEN 1 ELSE 0 END) as alc_use,
-   SUM(CASE WHEN TOBACCO_USER = 'Q' THEN 1 ELSE 0 END) as former,
-   SUM(CASE WHEN TOBACCO_USER = 'N' THEN 1 ELSE 0 END) as never,
-   SUM(CASE WHEN TOBACCO_USER IN ('X', 'U') THEN 1 ELSE 0 END) as unknown,
-   SUM(CASE WHEN TOBACCO_USER IS NULL THEN 1 ELSE 0 END) as t_null
+   SUM(CASE WHEN ALCOHOL_USER = 'Y' THEN 1 ELSE 0 END) as alc_use,
+   SUM(CASE WHEN ALCOHOL_USER = 'Q' THEN 1 ELSE 0 END) as former,
+   SUM(CASE WHEN ALCOHOL_USER = 'N' THEN 1 ELSE 0 END) as never,
+   SUM(CASE WHEN ALCOHOL_USER IN ('X', 'U') THEN 1 ELSE 0 END) as unknown,
+   SUM(CASE WHEN ALCOHOL_USER IS NULL THEN 1 ELSE 0 END) as t_null
      from social_history
        group by year(contact_date)
        order by year(contact_date)")
 
 tab16$year <- as.character(tab16$year)
+
+odbc::dbGetQuery(con,
+  "select top 10 *
+from social_history")
 
 ```
 
@@ -908,11 +912,11 @@ This table includes information on the distribution of SOCIAL_HISTORY records by
 tab17 <- odbc::dbGetQuery(con, 
   "select year(contact_date) as year,
    count(*) as num_rec,
-   SUM(CASE WHEN TOBACCO_USER = 'Y' THEN 1 ELSE 0 END) as ill_drug,
-   SUM(CASE WHEN TOBACCO_USER = 'Q' THEN 1 ELSE 0 END) as former,
-   SUM(CASE WHEN TOBACCO_USER = 'N' THEN 1 ELSE 0 END) as never,
-   SUM(CASE WHEN TOBACCO_USER IN ('X', 'U') THEN 1 ELSE 0 END) as unknown,
-   SUM(CASE WHEN TOBACCO_USER IS NULL THEN 1 ELSE 0 END) as t_null
+   SUM(CASE WHEN ILL_DRUG_USER = 'Y' THEN 1 ELSE 0 END) as ill_drug,
+   SUM(CASE WHEN ILL_DRUG_USER = 'Q' THEN 1 ELSE 0 END) as former,
+   SUM(CASE WHEN ILL_DRUG_USER = 'N' THEN 1 ELSE 0 END) as never,
+   SUM(CASE WHEN ILL_DRUG_USER IN ('X', 'U') THEN 1 ELSE 0 END) as unknown,
+   SUM(CASE WHEN ILL_DRUG_USER IS NULL THEN 1 ELSE 0 END) as t_null
      from social_history
        group by year(contact_date)
        order by year(contact_date)")
