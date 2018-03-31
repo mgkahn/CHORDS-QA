@@ -38,11 +38,6 @@ maxQryRows <- 0
 # install.packages("RODBC")
 library(RODBC)
 
-# mgk: load lib for GBQ R interface
-# mgk: see https://github.com/r-dbi-bigrquery
-# install.packages("bigrquery")
-library(bigrquery)
-
 library(knitr)
 library(tidyverse)
 
@@ -57,10 +52,6 @@ sqldb <- odbcDriverConnect(paste('driver={SQL Server};server=',params$DBServerNa
 
 # run this to close the connection to the database
 # close(sqldb)
-
-# mgk: create connection to UCHealth CHORDS VDW by specifying project information
-# mgk: UCHealth VDW project: hdcchvdwmedd
-project <- "hdcchvdwmedd"
 
 ```
 
@@ -140,14 +131,9 @@ This table contains summary counts and date ranges by table. Distinct encounters
 
 ```{r tab1_sum_stats, echo = F}
 
-# tab1_dem <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-#	count(distinct person_id) as npats
-#	from demographics")
-
-# mgk
-sql <- "select count(*) as nrows, count(distinct person_id) as npats from chvdw.DEMOGRAPHICS"
-tab1_dem <- query_exec(sql, project = project, use_legacy_sql = FALSE)
-sql <- ""
+tab1_dem <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats
+	from demographics")
 
 tab1_dem <- data.frame(nrows = tab1_dem$nrows, 
                        npats = tab1_dem$npats, 
@@ -156,44 +142,28 @@ tab1_dem <- data.frame(nrows = tab1_dem$nrows,
                        mindt = NA,
                        maxdt = NA)
 
-# tab1_enc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-#	count(distinct person_id) as npats,
-#  count(distinct enc_id) as nencts,
-#  'ADATE' as fieldname,
-#	min(ADATE) as mindt,
-#	max(ADATE) as maxdt
-#	from encounters")
 
-# mgk
-sql <- "select count(*) as nrows, count(distinct person_id) as npats, count(distinct enc_id) as nencts,
-        'ADATE' as fieldname, min(ADATE) as mindt, max(ADATE) as maxdt from chvdw.ENCOUNTERS"
-tab1_enc <- query_exec(sql, project = project, use_legacy_sql = FALSE)
-sql <- ""
+tab1_enc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  count(distinct enc_id) as nencts,
+  'ADATE' as fieldname,
+	min(ADATE) as mindt,
+	max(ADATE) as maxdt
+	from encounters")
 
-# tab1_loc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-#	count(distinct person_id) as npats
-# 	from census_location")
 
-# mgk
-# mgk -- Table is called CENSUS_LOCATION_ADDRESS_FILE in UCHealth. Investigate the difference
-sql <- "select  count(*) as nrows, count(distinct person_id) as npats from chvdw.CENSUS_LOCATION_ADDRESS_FILE"
-tab1_loc <- query_exec(sql, project = project, use_legacy_sql = FALSE)
-sql <- ""
+tab1_loc <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats
+	from census_location")
 
-# tab1_dx <- odbc::dbGetQuery(con, "select count(*) as nrows, 
-#	count(distinct person_id) as npats,
-#  'ADATE' as fieldname,
-#  count(distinct enc_id) as nencts,
-#	min(ADATE) as mindt,
-#	max(ADATE) as maxdt
-#	from diagnoses")
 
-# mgk
-sql <- "select count(*) as nrows, count(distinct person_id) as npats, 'ADATE' as fieldname,
-    count(distinct enc_id) as nencts, min(ADATE) as mindt, max(ADATE) as maxdt from chvdw.DIAGNOSES"
-tab1_dx <- query_exec(sql, project = project, use_legacy_sql = FALSE)
-sql <- ""
-
+tab1_dx <- odbc::dbGetQuery(con, "select count(*) as nrows, 
+	count(distinct person_id) as npats,
+  'ADATE' as fieldname,
+  count(distinct enc_id) as nencts,
+	min(ADATE) as mindt,
+	max(ADATE) as maxdt
+	from diagnoses")
 
 tab1_vs <- odbc::dbGetQuery(con, "select count(*) as nrows,
   count(distinct person_id) as npats,
