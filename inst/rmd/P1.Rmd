@@ -435,25 +435,42 @@ nDemogRows <- query_exec(sql, project = project, use_legacy_sql = FALSE)
 sql <- ""
 
 
-demogSummary <- sqlQuery(sqldb, 
-                  paste('select  count(*) as nDemogRows ',
-                                ', count(distinct person_id) as nPatsDemog ',
-		                            ', sum(nPatsWithEncs) as nPatsWithEncs ',
-		                            ', sum(nPatsWithLoc) as nPatsWithLoc ',
-		                            ', sum(nPatsWithDiag) as nPatsWithDiag ',
-		                            ', sum(nPatsWithVital) as nPatsWithVital' ,
-		                            '  FROM (select distinct',
-		                                          ' person_id',
-		                                         ', case when person_id in (select distinct person_id from', encounters,' ) then 1 else 0 end as nPatsWithEncs ',
-		                                        ',  case when person_id in (select distinct person_id from', census_location,' ) then 1 else 0 end as nPatsWithLoc ',
-		                                        ',  case when person_id in (select distinct person_id from', diagnoses,' ) then 1 else 0 end as nPatsWithDiag ',
-		                                        ',  case when person_id in (select distinct person_id from', vital_signs,' ) then 1 else 0 end as nPatsWithVital ',
-		                                        '  FROM',  demographics,') as q',
-                        sep=" "
-                 ),
-                 max=maxQryRows
-                  )
+# demogSummary <- sqlQuery(sqldb, 
+#                   paste('select  count(*) as nDemogRows ',
+#                                 ', count(distinct person_id) as nPatsDemog ',
+# 		                            ', sum(nPatsWithEncs) as nPatsWithEncs ',
+# 		                            ', sum(nPatsWithLoc) as nPatsWithLoc ',
+# 		                            ', sum(nPatsWithDiag) as nPatsWithDiag ',
+# 		                            ', sum(nPatsWithVital) as nPatsWithVital' ,
+# 		                            '  FROM (select distinct',
+# 		                                          ' person_id',
+# 		                                         ', case when person_id in (select distinct person_id from', 'chvdw.ENCOUNTERS',' ) then 1 else 0 end as nPatsWithEncs ',
+# 		                                        ',  case when person_id in (select distinct person_id from', 'chvdw.CENSUS_LOCATION_ADDRESS_FILE',' ) then 1 else 0 end as nPatsWithLoc ',
+# 		                                        ',  case when person_id in (select distinct person_id from', 'chvdw.DIAGNOSES' ,' ) then 1 else 0 end as nPatsWithDiag ',
+# 		                                        ',  case when person_id in (select distinct person_id from', 'chvdw.VITAL_SIGNS',' ) then 1 else 0 end as nPatsWithVital ',
+# 		                                        '  FROM',  'chvdw.DEMOGRAPHICS',') as q',
+#                         sep=" "
+#                  ),
+#                  max=maxQryRows
+#                   )
 
+
+# mgk
+
+sql <- "select  count(*) as nDemogRows, 
+        count(distinct person_id) as nPatsDemog, 
+        sum(nPatsWithEncs) as nPatsWithEncs, 
+        sum(nPatsWithLoc) as nPatsWithLoc, 
+        sum(nPatsWithDiag) as nPatsWithDiag, 
+        sum(nPatsWithVital) as nPatsWithVital
+FROM (select distinct person_id , 
+      case when person_id in (select distinct person_id from chvdw.ENCOUNTERS) then 1 else 0 end as nPatsWithEncs,
+      case when person_id in (select distinct person_id from chvdw.CENSUS_LOCATION_ADDRESS_FILE  )then 1 else 0 end as nPatsWithLoc,
+      case when person_id in (select distinct person_id from chvdw.DIAGNOSES) then 1 else 0 end as nPatsWithDiag,
+      case when person_id in (select distinct person_id from chvdw.VITAL_SIGNS) then 1 else 0 end as nPatsWithVital
+      FROM chvdw.DEMOGRAPHICS ) as q"
+demogSummary <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
 
 
 
@@ -480,16 +497,27 @@ knitr::kable(demogTable, col.names=c("Characteristic","Frequency","Percent of un
 
  
 ```{r demographic counts, include=F}
-demogCounts <- sqlQuery(sqldb, 
-                  paste('SELECT gender, primary_language, race1, count(*) as nRows',
+# demogCounts <- sqlQuery(sqldb, 
+#                   paste('SELECT gender, primary_language, race1, count(*) as nRows',
+# 
+#                         'FROM ',demographics,
+#                         'group by gender, primary_language, race1',
+#                         sep=" "
+#                         ),
+#                  as.is=c(TRUE,TRUE,TRUE,TRUE),
+#                  max=maxQryRows
+#                   )
 
-                        'FROM ',demographics,
-                        'group by gender, primary_language, race1',
-                        sep=" "
-                        ),
-                 as.is=c(TRUE,TRUE,TRUE,TRUE),
-                 max=maxQryRows
-                  )
+# mgk
+
+sql <-"SELECT gender, primary_language, race1, count(*) as nRows
+FROM  chvdw.DEMOGRAPHICS
+group by gender, primary_language, race1"
+demgCounts <- query_exec(sql, project = project, use_legacy_sql = FALSE )
+sql <-NULL
+
+
+
 demogCounts <- trimChrVars(demogCounts)
 
 ```
