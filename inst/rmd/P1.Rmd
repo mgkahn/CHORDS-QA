@@ -195,13 +195,13 @@ tab1_dx <- query_exec(sql, project = project, use_legacy_sql = FALSE)
 sql <- ""
 
 
-tab1_vs <- odbc::dbGetQuery(con, "select count(*) as nrows,
-  count(distinct person_id) as npats,
-  'MEASURE_DATE' as fieldname,
-  count(distinct enc_id) as nencts,
-	min(measure_date) as mindt,
-	max(measure_date) as maxdt
-	from vital_signs")
+# tab1_vs <- odbc::dbGetQuery(con, "select count(*) as nrows,
+#   count(distinct person_id) as npats,
+#  'MEASURE_DATE' as fieldname,
+#  count(distinct enc_id) as nencts,
+#	min(measure_date) as mindt,
+#	max(measure_date) as maxdt
+#	from vital_signs")
 
 tab1_loc <- data.frame(nrows = tab1_loc$nrows, npats = tab1_loc$npats, nencts = NA, fieldname = NA, mindt = NA, maxdt = NA)
 
@@ -222,16 +222,30 @@ This table contains record counts for null and unknown values across P1 tables.
 
 
 ```{r tab2_res, echo = F}
-tab2_demo_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN BIRTH_DATE IS NULL THEN 1 ELSE 0 END) as BIRTH_DATE,
+# tab2_demo_null <- odbc::dbGetQuery(con, 
+# "SELECT SUM(CASE WHEN BIRTH_DATE IS NULL THEN 1 ELSE 0 END) as BIRTH_DATE,
+#   SUM(CASE WHEN GENDER IS NULL THEN 1 ELSE 0 END) as GENDER,
+#   SUM(CASE WHEN PRIMARY_LANGUAGE IS NULL THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
+#   SUM(CASE WHEN NEEDS_INTERPRETER IS NULL THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
+#   SUM(CASE WHEN RACE1 IS NULL THEN 1 ELSE 0 END) as RACE1,
+#   SUM(CASE WHEN HISPANIC IS NULL THEN 1 ELSE 0 END) as HISPANIC,
+#   SUM(CASE WHEN SEXUAL_ORIENTATION IS NULL THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
+#   SUM(CASE WHEN GENDER_IDENTITY IS NULL THEN 1 ELSE 0 END) as GENDER_IDENTITY
+#      FROM DEMOGRAPHICS")
+
+
+
+sql <- "SELECT SUM(CASE WHEN BIRTH_DATE IS NULL THEN 1 ELSE 0 END) as BIRTH_DATE,
    SUM(CASE WHEN GENDER IS NULL THEN 1 ELSE 0 END) as GENDER,
    SUM(CASE WHEN PRIMARY_LANGUAGE IS NULL THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
-   SUM(CASE WHEN NEEDS_INTERPRETER IS NULL THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
-   SUM(CASE WHEN RACE1 IS NULL THEN 1 ELSE 0 END) as RACE1,
-   SUM(CASE WHEN HISPANIC IS NULL THEN 1 ELSE 0 END) as HISPANIC,
-   SUM(CASE WHEN SEXUAL_ORIENTATION IS NULL THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
-   SUM(CASE WHEN GENDER_IDENTITY IS NULL THEN 1 ELSE 0 END) as GENDER_IDENTITY
-      FROM DEMOGRAPHICS")
+      SUM(CASE WHEN NEEDS_INTERPRETER IS NULL THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
+      SUM(CASE WHEN RACE1 IS NULL THEN 1 ELSE 0 END) as RACE1,
+         SUM(CASE WHEN HISPANIC IS NULL THEN 1 ELSE 0 END) as HISPANIC,
+         SUM(CASE WHEN SEXUAL_ORIENTATION IS NULL THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
+	    SUM(CASE WHEN GENDER_IDENTITY IS NULL THEN 1 ELSE 0 END) as GENDER_IDENTITY
+	       FROM chvdw.DEMOGRAPHICS"
+tab2_demo_null <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
 
 tab2_demo_null2 <- data.frame(table = rep("DEMOGRAPHICS", ncol(tab2_demo_null)), var = names(tab2_demo_null), records_null = t(tab2_demo_null)[,1])
 row.names(tab2_demo_null2) <- NULL
@@ -242,6 +256,13 @@ tab2_enc_null <- odbc::dbGetQuery(con,
    SUM(CASE WHEN PROVIDER IS NULL THEN 1 ELSE 0 END) as PROVIDER,
    SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCOUNTER_SUBTYPE
       FROM ENCOUNTERS")
+sql <- "SELECT SUM(CASE WHEN ADATE IS NULL THEN 1 ELSE 0 END) as ADATE,
+   SUM(CASE WHEN DDATE IS NULL THEN 1 ELSE 0 END) as DDATE,
+   SUM(CASE WHEN PROVIDER IS NULL THEN 1 ELSE 0 END) as PROVIDER,
+      SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCOUNTER_SUBTYPE
+         FROM chvdw.ENCOUNTERS"
+tab2_enc_null <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
 
 tab2_enc_null2 <- data.frame(table = rep("ENCOUNTERS", ncol(tab2_enc_null)), var = names(tab2_enc_null), records_null = t(tab2_enc_null)[,1])
 row.names(tab2_enc_null2) <- NULL
@@ -251,22 +272,64 @@ tab2_cl_null <- odbc::dbGetQuery(con,
    SUM(CASE WHEN CITY_GEOCODE IS NULL THEN 1 ELSE 0 END) as CITY_GEOCODE
       FROM CENSUS_LOCATION")
 
+# mgk
+# FAKE GEOCODING (absent)
+# foobar
+
+sql <- "SELECT SUM(CASE WHEN ADDRESS_1 IS NULL THEN 1 ELSE 0 END) as GEOCODE,
+   SUM(CASE WHEN CITY IS NULL THEN 1 ELSE 0 END) as CITY_GEOCODE
+      FROM chvdw.CENSUS_LOCATION_ADDRESS_FILE"
+tab2_c1_null <- query.exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
+
+
 tab2_cl_null2 <- data.frame(table = rep("CENSUS_LOCATION", ncol(tab2_cl_null)), var = names(tab2_cl_null), records_null = t(tab2_cl_null)[,1])
 row.names(tab2_cl_null2) <- NULL
 
-tab2_dx_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
+# tab2_dx_null <- odbc::dbGetQuery(con, 
+#  "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
+#   SUM(CASE WHEN ADATE IS NULL THEN 1 ELSE 0 END) as ADATE,
+#   SUM(CASE WHEN DX IS NULL THEN 1 ELSE 0 END) as DX,
+#   SUM(CASE WHEN PRINCIPAL_DX IS NULL THEN 1 ELSE 0 END) as PRINCIPAL_DX,
+#   SUM(CASE WHEN PRIMARY_DX IS NULL THEN 1 ELSE 0 END) as PRIMARY_DX
+#      FROM DIAGNOSES")
+
+# mgk
+sql <- "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
    SUM(CASE WHEN ADATE IS NULL THEN 1 ELSE 0 END) as ADATE,
    SUM(CASE WHEN DX IS NULL THEN 1 ELSE 0 END) as DX,
-   SUM(CASE WHEN PRINCIPAL_DX IS NULL THEN 1 ELSE 0 END) as PRINCIPAL_DX,
-   SUM(CASE WHEN PRIMARY_DX IS NULL THEN 1 ELSE 0 END) as PRIMARY_DX
-      FROM DIAGNOSES")
+      SUM(CASE WHEN PRINCIPAL_DX IS NULL THEN 1 ELSE 0 END) as PRINCIPAL_DX,
+      SUM(CASE WHEN PRIMARY_DX IS NULL THEN 1 ELSE 0 END) as PRIMARY_DX
+            FROM chvdw.DIAGNOSES"
+tab2_dx_null <- query.exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
+
 
 tab2_dx_null2 <- data.frame(table = rep("DIAGNOSES", ncol(tab2_dx_null)), var = names(tab2_dx_null), records_null = t(tab2_dx_null)[,1])
 row.names(tab2_dx_null2) <- NULL
 
-tab2_vs_null <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
+# tab2_vs_null <- odbc::dbGetQuery(con, 
+# "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
+#   SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCTYPE,
+#   SUM(CASE WHEN HT IS NULL THEN 1 ELSE 0 END) as HT,
+#   SUM(CASE WHEN WT IS NULL THEN 1 ELSE 0 END) as WT,
+#   SUM(CASE WHEN DIASTOLIC IS NULL THEN 1 ELSE 0 END) as DIASTOLIC,
+#   SUM(CASE WHEN SYSTOLIC IS NULL THEN 1 ELSE 0 END) as SYSTOLIC,
+#   SUM(CASE WHEN HT_RAW IS NULL THEN 1 ELSE 0 END) as HT_RAW,
+#   SUM(CASE WHEN WT_RAW IS NULL THEN 1 ELSE 0 END) as WT_RAW,
+#   SUM(CASE WHEN BMI_RAW IS NULL THEN 1 ELSE 0 END) as BMI_RAW,
+#   SUM(CASE WHEN DIASTOLIC_RAW IS NULL THEN 1 ELSE 0 END) as DIASTOLIC_RAW,
+#   SUM(CASE WHEN SYSTOLIC_RAW IS NULL THEN 1 ELSE 0 END) as SYSTOLIC_RAW,
+#   SUM(CASE WHEN BP_TYPE IS NULL THEN 1 ELSE 0 END) as BP_TYPE,
+#   SUM(CASE WHEN POSITION IS NULL THEN 1 ELSE 0 END) as POSITION,
+#   SUM(CASE WHEN HEAD_CIR_RAW IS NULL THEN 1 ELSE 0 END) as HEAD_CIR_RAW,
+#   SUM(CASE WHEN RESPIR_RAW IS NULL THEN 1 ELSE 0 END) as RESPIR_RAW,
+#   SUM(CASE WHEN TEMP_RAW IS NULL THEN 1 ELSE 0 END) as TEMP_RAW,
+#   SUM(CASE WHEN PULSE_RAW IS NULL THEN 1 ELSE 0 END) as PULSE_RAW
+#      FROM VITAL_SIGNS")
+
+# mgk Vital Signs table not correct
+sql <- "SELECT SUM(CASE WHEN ENC_ID IS NULL THEN 1 ELSE 0 END) as ENC_ID,
    SUM(CASE WHEN ENCTYPE IS NULL THEN 1 ELSE 0 END) as ENCTYPE,
    SUM(CASE WHEN HT IS NULL THEN 1 ELSE 0 END) as HT,
    SUM(CASE WHEN WT IS NULL THEN 1 ELSE 0 END) as WT,
@@ -283,7 +346,11 @@ tab2_vs_null <- odbc::dbGetQuery(con,
    SUM(CASE WHEN RESPIR_RAW IS NULL THEN 1 ELSE 0 END) as RESPIR_RAW,
    SUM(CASE WHEN TEMP_RAW IS NULL THEN 1 ELSE 0 END) as TEMP_RAW,
    SUM(CASE WHEN PULSE_RAW IS NULL THEN 1 ELSE 0 END) as PULSE_RAW
-      FROM VITAL_SIGNS")
+      FROM chvdw.VITAL_SIGNS"
+
+
+ # tab2_vs_null2 <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+ sql <- ""
 
 tab2_vs_null2 <- data.frame(table = rep("VITAL_SIGNS", ncol(tab2_vs_null)), var = names(tab2_vs_null), records_null = t(tab2_vs_null)[,1])
 row.names(tab2_vs_null2) <- NULL
@@ -297,22 +364,44 @@ tab2_null <- bind_rows(tab2_demo_null2, tab2_enc_null2, tab2_cl_null2, tab2_dx_n
                                              ifelse(table == "VITAL_SIGNS", (records_null / tab1_vs$nrows * 100), NA)))))
   )
 
-tab2_demo_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
+# tab2_demo_uk <- odbc::dbGetQuery(con, 
+#  "SELECT SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
+#   SUM(CASE WHEN PRIMARY_LANGUAGE = 'UNK' THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
+#   SUM(CASE WHEN NEEDS_INTERPRETER = 'U' THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
+#   SUM(CASE WHEN RACE1 = 'UN' THEN 1 ELSE 0 END) as RACE1,
+#   SUM(CASE WHEN HISPANIC = 'U' THEN 1 ELSE 0 END) as HISPANIC,
+#   SUM(CASE WHEN SEXUAL_ORIENTATION = 'UN' THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
+#   SUM(CASE WHEN GENDER_IDENTITY = 'UN' THEN 1 ELSE 0 END) as GENDER_IDENTITY
+#      FROM DEMOGRAPHICS")
+
+# mgk
+
+sql <- "SELECT SUM(CASE WHEN GENDER = 'U' THEN 1 ELSE 0 END) as GENDER,
    SUM(CASE WHEN PRIMARY_LANGUAGE = 'UNK' THEN 1 ELSE 0 END) as PRIMARY_LANGUAGE,
    SUM(CASE WHEN NEEDS_INTERPRETER = 'U' THEN 1 ELSE 0 END) as NEEDS_INTERPRETER,
    SUM(CASE WHEN RACE1 = 'UN' THEN 1 ELSE 0 END) as RACE1,
    SUM(CASE WHEN HISPANIC = 'U' THEN 1 ELSE 0 END) as HISPANIC,
    SUM(CASE WHEN SEXUAL_ORIENTATION = 'UN' THEN 1 ELSE 0 END) as SEXUAL_ORIENTATION,
    SUM(CASE WHEN GENDER_IDENTITY = 'UN' THEN 1 ELSE 0 END) as GENDER_IDENTITY
-      FROM DEMOGRAPHICS")
+       FROM chvdw.DEMOGRAPHICS"
+tab2_demo_uk2 <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
+
 
 tab2_demo_uk2 <- data.frame(table = rep("DEMOGRAPHICS", ncol(tab2_demo_uk)), var = names(tab2_demo_uk), records_uk = t(tab2_demo_uk)[,1])
 row.names(tab2_demo_uk2) <- NULL
 
-tab2_enc_uk <- odbc::dbGetQuery(con, 
-  "SELECT SUM(CASE WHEN PROVIDER = 'UNKNOWN' THEN 1 ELSE 0 END) as PROVIDER
-      FROM ENCOUNTERS")
+# tab2_enc_uk <- odbc::dbGetQuery(con, 
+#  "SELECT SUM(CASE WHEN PROVIDER = 'UNKNOWN' THEN 1 ELSE 0 END) as PROVIDER
+#      FROM ENCOUNTERS")
+
+# mgk
+
+sql <- "SELECT SUM(CASE WHEN PROVIDER = 'UNKNOWN' THEN 1 ELSE 0 END) as PROVIDER
+      FROM chvdw.ENCOUNTERS"
+tab2_enc_uk <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
+
 
 tab2_enc_uk2 <- data.frame(table = rep("ENCOUNTERS", ncol(tab2_enc_uk)), var = names(tab2_enc_uk), records_uk = t(tab2_enc_uk)[,1])
 row.names(tab2_enc_uk2) <- NULL
@@ -338,7 +427,13 @@ kable(tab2_all, col.names = c("Table", "Variable", "Null Records", "Percent of R
 ##Table 3. Overall demographics
 
 ```{r Demographic table, include=F}
-nDemogRows <- sqlQuery(sqldb, 'select  count(*) as nDemogRows FROM  demographics') 
+# nDemogRows <- sqlQuery(sqldb, 'select  count(*) as nDemogRows FROM  demographics') 
+
+# mgk
+sql <- "select  count(*) as nDemogRows FROM  chvdw.DEMOGRAPHICS"
+nDemogRows <- query_exec(sql, project = project, use_legacy_sql = FALSE)
+sql <- ""
+
 
 demogSummary <- sqlQuery(sqldb, 
                   paste('select  count(*) as nDemogRows ',
@@ -358,6 +453,9 @@ demogSummary <- sqlQuery(sqldb,
                  ),
                  max=maxQryRows
                   )
+
+
+
 
 gc()
 
